@@ -151,6 +151,7 @@
       start: vw + 10,                                   // first cover just off the right edge
       end: vw / 2 - ((N - 1) * step + size / 2),        // last cover centred
       hop: D * 0.85,
+      peak: D * 0.72,                                   // how high the line spikes when the record jumps
       rollIn: 1600,
       exitTo: Math.min(vw / 2 + size / 2 + gap + r, vw - r - 12),
     };
@@ -172,6 +173,14 @@
         const env = Math.pow(Math.sin(Math.PI * u), 0.7);
         const f = WAVES[COVERS[k].wave] || WAVES.calm;
         y = floor - amp * env * f(u);
+      }
+      // where the record jumps through a gap, the line jumps too: a level-meter peak
+      const g = Math.round((x - (size + gap / 2)) / step);
+      if (g >= 0 && g <= N - 2) {
+        const dx = x - (g * step + size + gap / 2);
+        const fade = Math.exp(-Math.pow(dx / (0.085 * step), 2));
+        const wob = Math.cos((2 * Math.PI * dx) / (0.075 * step));
+        y -= W.peak * fade * (wob > 0 ? wob : 0.18 * wob);
       }
       d += `L${x} ${y.toFixed(1)}`;
     }
