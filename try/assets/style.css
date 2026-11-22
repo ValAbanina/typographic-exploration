@@ -79,21 +79,36 @@ body.no-scroll { overflow: hidden; }
   padding: clamp(32px, 6vh, 80px) var(--gutter) clamp(36px, 6vh, 64px);
   display: grid; grid-template-columns: 1fr;
 }
-/* wide screens: title on the left, the words that explain it on the right,
-   both sitting on the same bottom line, like a show title and its wall label */
+/* wide screens: the title and its description form one block.
+   The text starts at the top of the title and the hint sits on its bottom line,
+   and three lines of text take exactly the height of one line of the title. */
 @media (min-width: 1000px) {
   .hero {
-    grid-template-columns: auto minmax(300px, 400px);
-    justify-content: space-between; align-items: end;
-    column-gap: clamp(48px, 6vw, 120px);
+    --t: clamp(42px, 7.2vw, 104px);                 /* the title's size (same as .hero__title) */
+    grid-template-columns: auto minmax(280px, 25em);
+    grid-template-rows: auto auto;
+    justify-content: start; align-items: stretch;
+    column-gap: clamp(40px, 4vw, 72px);
   }
-  .hero__side { padding-bottom: .4em; }
-  .hero__side .hero__lede { margin-top: 0; }
+  .hero__head { grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; }
+  .hero__head .eyebrow { margin-bottom: 14px; }
+  .hero__side {
+    grid-column: 2; grid-row: 1 / span 2;
+    display: flex; flex-direction: column; justify-content: space-between;
+    /* start where the title's letters start (below the eyebrow) */
+    padding-top: calc(18px + 14px + var(--t) * 0.06);
+    padding-bottom: calc(var(--t) * 0.06);
+    font-size: calc(var(--t) * 0.19);
+    line-height: calc(var(--t) * 0.92 / 3);      /* 3 text lines = 1 title line */
+  }
+  .hero__side .hero__lede { margin-top: 0; font-size: inherit; line-height: inherit; max-width: none; }
+  .hero__side .hero__hint { margin-top: 0; font-size: inherit; line-height: inherit; }
+  .hero__side .hero__show { margin-top: 0; }
 }
 /* the last line shows what it says */
 .hero__show { display: block; margin-top: .55em; color: var(--white); font-weight: 300; }
 .w-rhythm { letter-spacing: .34em; margin-right: -.2em; }
-.w-volume { font-family: var(--font-head); font-weight: 800; font-size: 1.3em; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+.w-volume { font-family: var(--font-head); font-weight: 800; font-size: 1.3em; line-height: 0; text-transform: uppercase; letter-spacing: .02em; }
 .w-emotion { font-style: italic; color: var(--teal); }
 .eyebrow { color: var(--teal); margin-bottom: 14px; }
 .hero__title {
