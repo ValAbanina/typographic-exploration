@@ -574,7 +574,8 @@
     if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); if (grille) grille.classList.add("is-leaving"); startWall(); }
     else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") { e.preventDefault(); settle(); }
   });
-  $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(true); } });
+  // Replay intro goes back to the title screen (Enter + the breathing grille), like the first visit
+  $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(false); } });
   window.addEventListener("resize", () => { if (introRunning && wallStarted) layoutWall(); });
 
   /* ---------------------------------------------------------
