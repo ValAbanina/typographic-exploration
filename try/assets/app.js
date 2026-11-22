@@ -44,6 +44,26 @@
   const cards = [...grid.querySelectorAll(".card")];
   const cardArts = cards.map((c) => $(".card__art", c));
 
+  // Long song names (ATYCHIPHOBIA, HEAVENSWARD…) never break mid-word: if a word is wider than
+  // its column, that title shrinks just enough for its longest word to fit.
+  function fitCardTitles() {
+    grid.querySelectorAll(".card__title").forEach((t) => {
+      t.style.fontSize = "";
+      const room = t.clientWidth;
+      if (!room) return;
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+      t.appendChild(probe);
+      const longest = Math.max(...t.textContent.replace(probe.textContent, "").split(/\s+/).map((w) => { probe.textContent = w; return probe.getBoundingClientRect().width; }));
+      probe.remove();
+      if (longest > room) t.style.fontSize = `${parseFloat(getComputedStyle(t).fontSize) * (room / longest) * 0.97}px`;
+    });
+  }
+  fitCardTitles();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCardTitles);
+  let cardFitTimer = 0;
+  window.addEventListener("resize", () => { clearTimeout(cardFitTimer); cardFitTimer = setTimeout(fitCardTitles, 100); });
+
   // On phones the student name drops to its own line (no dangling separator)
   const mq = window.matchMedia("(max-width: 760px)");
   const syncSep = () => grid.querySelectorAll(".sep").forEach((s) => (s.hidden = mq.matches));

@@ -228,7 +228,7 @@ body.no-scroll { overflow: hidden; }
 .card:hover .card__play, .card:focus-visible .card__play { opacity: 1; transform: none; }
 @media (hover: none) { .card__play { opacity: 1; transform: none; } }
 
-.card__title, .card__meta { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; min-width: 0; }
+.card__title, .card__meta { min-width: 0; }   /* words are never split; long names shrink to fit instead (fitCardTitles) */
 @media (max-width: 760px) {
   .card__label { column-gap: 8px; margin-top: 12px; }
   .card__title { font-size: 13px; letter-spacing: .08em; }
