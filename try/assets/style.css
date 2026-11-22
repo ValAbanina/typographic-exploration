@@ -405,32 +405,54 @@ body.intro-on .intro { display: block; }
   opacity: 0; transform: translateY(8px); pointer-events: none;
 }
 .intro.t-gate .intro__gate { opacity: 1; transform: none; pointer-events: auto; transition: opacity .8s ease, transform .9s var(--ease-out); }
-/* a crate of records standing upright, spines out, from margin to margin */
-.crate {
-  position: absolute; left: var(--gutter); right: var(--gutter); bottom: clamp(28px, 6vh, 64px);
-  height: clamp(70px, 15vh, 150px);
-  display: flex; align-items: flex-end; gap: 1px;
+/* speaker grille: a fine perforated dot texture in dark grey, margin to margin, fading upward */
+@property --ring { syntax: "<length>"; inherits: false; initial-value: 0px; }
+.grille {
+  --dot: #2a2c2c;
+  position: absolute; left: var(--gutter); right: var(--gutter); bottom: 0;
+  height: clamp(140px, 30vh, 300px);
   pointer-events: none;
-}
-.crate__spine {
-  flex: none; width: var(--w); height: var(--h);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 92%, #fff) 0, var(--c) 6%, color-mix(in srgb, var(--c) 82%, #000) 100%);
-  box-shadow: inset 1px 0 0 rgba(255,255,255,.10), inset -1px 0 0 rgba(0,0,0,.45);   /* thin light and dark edges so every sleeve reads */
-  transform-origin: 50% 100%;
-  transform: rotate(var(--lean, 0deg)) scaleY(0);
+  background-image:
+    radial-gradient(circle at center, var(--dot) 0 1.35px, transparent 1.9px),
+    radial-gradient(circle at center, var(--dot) 0 1.35px, transparent 1.9px);
+  background-size: 9px 8px;
+  background-position: 0 0, 4.5px 4px;                 /* staggered rows, like perforated metal */
+  -webkit-mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+          mask-image: linear-gradient(to top, #000 35%, transparent 100%);
   opacity: 0;
 }
-/* when Enter appears, the records rise in a quick wave from left to right */
-.intro.t-gate .crate__spine {
-  transform: rotate(var(--lean, 0deg)) scaleY(1); opacity: 1;
-  transition: transform .55s var(--ease-out) var(--d, 0s), opacity .3s ease var(--d, 0s);
+.intro.t-gate .grille { opacity: 1; transition: opacity 1.2s ease; }
+/* the same holes, brighter, shown only inside a ring that travels outward: the speaker breathing */
+.grille__pulse {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at center, #687070 0 1.45px, transparent 2px),
+    radial-gradient(circle at center, #687070 0 1.45px, transparent 2px);
+  background-size: 9px 8px; background-position: 0 0, 4.5px 4px;
+  -webkit-mask-image: radial-gradient(circle at 50% 100%, transparent calc(var(--ring) - 70px), #000 var(--ring), transparent calc(var(--ring) + 70px));
+          mask-image: radial-gradient(circle at 50% 100%, transparent calc(var(--ring) - 70px), #000 var(--ring), transparent calc(var(--ring) + 70px));
+  opacity: 0;
 }
-/* on Enter they flip forward one after another, like flipping through a crate, and fade */
-.crate.is-leaving .crate__spine {
-  transform: rotate(calc(var(--lean, 0deg) + 24deg)) scaleY(.92); opacity: 0;
-  transition: transform .45s var(--ease-in-out) var(--ld, 0s), opacity .4s ease var(--ld, 0s);
+.intro.t-gate .grille__pulse { animation: breathe 3.6s linear .8s infinite; }
+@keyframes breathe {
+  0% { --ring: 0px; opacity: 0; }
+  8% { opacity: 1; }
+  65% { opacity: .75; }
+  100% { --ring: 1000px; opacity: 0; }
 }
-.intro.t3:not(.t-gate) .crate { display: none; }
+/* Enter: one stronger beat goes out, then the grille fades as the record rolls in */
+.grille.is-leaving { opacity: 0 !important; transition: opacity .9s ease .35s !important; }
+.grille.is-leaving .grille__pulse {
+  background-image:
+    radial-gradient(circle at center, color-mix(in srgb, var(--teal) 70%, #2a2c2c) 0 1.5px, transparent 2px),
+    radial-gradient(circle at center, color-mix(in srgb, var(--teal) 70%, #2a2c2c) 0 1.5px, transparent 2px);
+  animation: beat 1.3s cubic-bezier(.3,.5,.4,1) forwards;
+}
+@keyframes beat {
+  0% { --ring: 0px; opacity: 0; }
+  10% { opacity: 1; }
+  100% { --ring: 1600px; opacity: 0; }
+}
 
 /* quiet, typographic: just the word, with a thin teal underline that grows on hover */
 .intro__enter {
