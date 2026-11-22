@@ -45,6 +45,7 @@ Then open http://localhost:8000.
 
 ## Notes
 
+- The intro waits on the title card for **Enter**, because browsers only allow sound after a click. Its sounds (needle drop, crackle, a kick on each jump, a short phrase per song, the spin-down) are generated in code in `assets/app.js` (the `Sound` section), with no audio files. Visitors can switch sound off with the "Sound on" button.
 - The intro plays once per browser session. "Replay intro" in the header runs it again. Visitors who have reduced motion turned on in their system settings skip it.
 - Each cover has its own link: `…/#espresso` opens that cover's listening view directly.
 - Visitors who aren't signed in to Spotify hear a 30-second preview, then the next cover starts. Signed-in Premium listeners usually hear the full song.

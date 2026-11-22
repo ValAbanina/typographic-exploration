@@ -91,6 +91,149 @@
   };
 
   /* ---------------------------------------------------------
+     SOUND — made live in the browser with Web Audio (no files).
+     Browsers only allow sound after a click, so it starts from
+     the Enter button (or Replay intro).
+     --------------------------------------------------------- */
+  const Sound = (() => {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx = null, master = null, loops = [], humGain = null;
+    let on = store.get("sound") !== "off";
+    // A minor pentatonic: each cover gets its own root note
+    const SCALE = [220, 261.63, 293.66, 329.63, 392];
+
+    function unlock() {
+      if (!AC) return;
+      try {
+        if (!ctx) {
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = on ? 0.9 : 0;
+          const comp = ctx.createDynamicsCompressor();
+          master.connect(comp); comp.connect(ctx.destination);
+        }
+        if (ctx.state === "suspended") ctx.resume();
+      } catch (e) { ctx = null; }
+    }
+    const ready = () => ctx && ctx.state !== "closed";
+    const now = () => ctx.currentTime;
+
+    function setOn(v) {
+      on = v;
+      store.set("sound", v ? "on" : "off");
+      if (ready()) master.gain.setTargetAtTime(v ? 0.9 : 0, now(), 0.05);
+    }
+
+    function noise(sec, kind) {
+      const len = Math.floor(ctx.sampleRate * sec);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        if (kind === "brown") { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+        else if (kind === "crackle") { d[i] = w * 0.015 + (Math.random() < 0.0009 ? (Math.random() * 2 - 1) * 0.9 : 0); }
+        else d[i] = w;
+      }
+      return buf;
+    }
+
+    // one note: oscillator → envelope (→ filter) → master
+    function tone(freq, { type = "sine", at = 0, dur = 0.4, vol = 0.1, attack = 0.01, filter = null, glideTo = null, vibrato = 0 } = {}) {
+      const t = now() + at;
+      const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      let node = o;
+      if (filter) { const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = filter; node.connect(f); node = f; }
+      if (vibrato) { const l = ctx.createOscillator(); const lg = ctx.createGain(); l.frequency.value = 6; lg.gain.value = vibrato; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.05); }
+      node.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.05);
+    }
+    function burst({ at = 0, dur = 0.05, vol = 0.1, hp = 2000, bp = null } = {}) {
+      const t = now() + at;
+      const s = ctx.createBufferSource(); s.buffer = noise(dur + 0.02, "white");
+      const f = ctx.createBiquadFilter(); f.type = bp ? "bandpass" : "highpass"; f.frequency.value = bp || hp;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(master);
+      s.start(t); s.stop(t + dur + 0.02);
+    }
+
+    // needle drop, vinyl crackle and the soft rumble of the record rolling
+    function start() {
+      if (!ready()) return;
+      stop(0.01);
+      burst({ dur: 0.03, vol: 0.25, hp: 2500 });
+      tone(90, { glideTo: 40, dur: 0.3, vol: 0.4 });
+      const mk = (kind, sec, filterType, freq, vol) => {
+        const s = ctx.createBufferSource(); s.buffer = noise(sec, kind); s.loop = true;
+        const f = ctx.createBiquadFilter(); f.type = filterType; f.frequency.value = freq;
+        const g = ctx.createGain(); g.gain.value = 0.0001;
+        g.gain.setTargetAtTime(vol, now() + 0.15, 0.2);
+        s.connect(f); f.connect(g); g.connect(master); s.start();
+        loops.push({ s, g });
+        return g;
+      };
+      mk("crackle", 3, "highpass", 900, 0.5);
+      humGain = mk("brown", 3, "lowpass", 220, 0.0001);
+    }
+    function speed(v) { if (ready() && humGain) humGain.gain.setTargetAtTime(0.32 * clamp(v, 0, 1.2), now(), 0.08); }
+    function stop(fade = 0.6) {
+      if (!ctx) return;
+      loops.forEach(({ s, g }) => { g.gain.setTargetAtTime(0.0001, now(), fade / 3); try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } });
+      loops = []; humGain = null;
+    }
+
+    // the jump through a gap: a soft kick, in time with the spike in the line
+    function hop() {
+      if (!ready()) return;
+      tone(170, { glideTo: 50, dur: 0.16, vol: 0.45 });
+      burst({ dur: 0.02, vol: 0.06, hp: 3500 });
+    }
+
+    // a short phrase in each song's character as the record reaches its cover
+    function cover(i) {
+      if (!ready()) return;
+      const r = SCALE[i % SCALE.length];
+      const kind = (COVERS[i] && COVERS[i].wave) || "calm";
+      const P = {
+        calm:    () => { tone(r, { attack: 0.25, dur: 1.4, vol: 0.1 }); tone(r * 1.5, { attack: 0.3, dur: 1.4, vol: 0.06 }); },
+        swell:   () => [1, 1.2, 1.5].forEach((m) => tone(r * m, { type: "triangle", attack: 0.5, dur: 1.5, vol: 0.06 })),
+        bouncy:  () => { tone(r * 2, { type: "triangle", dur: 0.25, vol: 0.16 }); tone(r * 3, { type: "triangle", at: 0.12, dur: 0.25, vol: 0.14 }); },
+        groove:  () => { tone(r / 2, { dur: 0.4, vol: 0.2 }); tone(r * 2, { type: "triangle", dur: 0.2, vol: 0.12 }); tone(r * 2.5, { type: "triangle", at: 0.18, dur: 0.2, vol: 0.12 }); },
+        heavy:   () => { tone(r / 2, { type: "sawtooth", attack: 0.05, dur: 1.2, vol: 0.12, filter: 420 }); tone(r / 2 * 1.01, { type: "sawtooth", attack: 0.05, dur: 1.2, vol: 0.1, filter: 420 }); },
+        pulse:   () => [0, 0.1, 0.2].forEach((at) => tone(r * 2, { type: "square", at, dur: 0.07, vol: 0.06, filter: 2200 })),
+        march:   () => { burst({ bp: 1800, dur: 0.09, vol: 0.18 }); burst({ bp: 1800, at: 0.15, dur: 0.09, vol: 0.14 }); tone(r / 2, { dur: 0.35, vol: 0.16 }); },
+        sparkle: () => [[4, 0], [6, 0.07], [8, 0.14]].forEach(([m, at]) => tone(r * m / 2, { at, dur: 0.6, vol: 0.06 })),
+        jagged:  () => tone(r, { type: "sawtooth", dur: 0.35, vol: 0.12, filter: 1600 }),
+        frantic: () => { for (let k = 0; k < 6; k++) tone(SCALE[(i + k * 3) % 5] * 2, { type: "square", at: k * 0.045, dur: 0.04, vol: 0.05, filter: 3000 }); },
+        horror:  () => { tone(r, { attack: 0.1, dur: 1.3, vol: 0.1, vibrato: 9 }); tone(r * Math.SQRT2, { attack: 0.1, dur: 1.3, vol: 0.08, vibrato: 7 }); }
+      };
+      (P[kind] || P.calm)();
+    }
+
+    // the record slows down: the classic turntable "power-off" pitch drop
+    function spinDown() {
+      if (!ready()) return;
+      tone(110, { type: "sawtooth", attack: 0.03, dur: 1.4, vol: 0.12, filter: 900, glideTo: 24 });
+      tone(165, { type: "triangle", attack: 0.03, dur: 1.4, vol: 0.08, glideTo: 36 });
+      stop(1.2);
+    }
+    // a small "plop" as it lands in the teal dot
+    function land() {
+      if (!ready()) return;
+      tone(1320, { glideTo: 660, dur: 0.22, vol: 0.12 });
+      tone(660, { at: 0.06, dur: 0.4, vol: 0.06 });
+    }
+
+    return { unlock, start, speed, stop, hop, cover, spinDown, land, setOn, isOn: () => on };
+  })();
+
+  /* ---------------------------------------------------------
      INTRO — a record rolls along the gallery wall
      --------------------------------------------------------- */
   const intro = $("#intro");
@@ -206,6 +349,7 @@
     roller.style.setProperty("--tint", c.tint || "#006767");
     rollerDisc.classList.remove("is-flip"); void rollerDisc.offsetWidth; rollerDisc.classList.add("is-flip");
     introCount.textContent = `${pad(i + 1)} / ${pad(N)}`;
+    Sound.cover(i);
   }
 
   // Place everything for a given track offset (x) and record screen position (sx)
@@ -223,6 +367,12 @@
     roller.style.transform = `translate3d(${sx - r}px,${y}px,0)`;
     rollerDisc.style.transform = `rotate(${deg % 360}deg)`;
     R.sx = sx; R.y = y;
+
+    // sound: a kick at the top of each jump, and a rumble that follows the record's speed
+    if (g >= 0 && g <= N - 2 && dist < 0.05 * step && g !== R.lastHop) { R.lastHop = g; Sound.hop(); }
+    const tNow = performance.now();
+    if (R.lastXr != null && tNow > R.lastT) Sound.speed(Math.abs(xr - R.lastXr) / (tNow - R.lastT) / (step / 1000));
+    R.lastXr = xr; R.lastT = tNow;
 
     trailReveal.setAttribute("width", Math.max(0, xr - r * 0.25 + 99999));
     spotlight.style.transform = `translate3d(${sx}px,0,0)`;
@@ -244,6 +394,7 @@
     wallStarted = true;
     layoutWall();
     roller.classList.add("is-on");
+    Sound.start();
     const t0 = performance.now();
     let exitT = 0;
     const frame = (now) => {
@@ -258,7 +409,7 @@
         return;
       }
       // the wall has stopped: the record rolls out from behind the last cover and spins down
-      if (!exitT) exitT = now;
+      if (!exitT) { exitT = now; Sound.spinDown(); }
       const e = (now - exitT) / 1300;
       const sx = W.vw / 2 + (W.exitTo - W.vw / 2) * easeOut(e);
       drawFrame(x, sx, W.end * -1 + W.vw / 2);
@@ -275,15 +426,16 @@
     roller.style.transform = "";
     trailReveal.setAttribute("width", 0);
     shades.forEach((s, k) => { s.style.opacity = ""; shadeVals[k] = -1; });
-    R.cur = null;
+    R.cur = null; R.lastHop = null; R.lastXr = null;
   }
 
-  function playIntro() {
+  // clicked = started by a click (Replay intro), so sound is already allowed and no Enter button is needed
+  function playIntro(clicked = false) {
     introRunning = true;
     wallStarted = false;
     window.scrollTo(0, 0);
     document.body.classList.add("intro-on", "no-scroll");
-    intro.classList.remove("t1", "t2", "t3", "is-leaving");
+    intro.classList.remove("t1", "t2", "t3", "t-gate", "is-leaving");
     wall.style.visibility = "";
     resetRoller();
     track.style.transform = `translate3d(${window.innerWidth + 10}px,0,0)`;
@@ -291,7 +443,15 @@
     const at = (ms, fn) => introTimers.push(setTimeout(fn, ms));
     at(150, () => intro.classList.add("t1"));
     at(1100, () => intro.classList.add("t2"));
-    at(3500, () => { intro.classList.add("t3"); runWall(); });
+    if (clicked) at(3500, startWall);
+    else at(2300, () => { intro.classList.add("t-gate"); $("#enterIntro").focus({ preventScroll: true }); });
+  }
+
+  function startWall() {
+    if (!introRunning || wallStarted) return;
+    intro.classList.remove("t-gate");
+    intro.classList.add("t3");
+    runWall();
   }
 
   function clearIntroTimers() {
@@ -347,10 +507,12 @@
           art.style.transform = "";
         });
         landRecord();
+        setTimeout(Sound.land, 1050);
       });
     } else {
       wall.style.visibility = "hidden";
     }
+    Sound.stop(0.5);
 
     intro.classList.add("is-leaving");
     const total = canFly ? 1250 + N * 45 : 900;
@@ -372,10 +534,21 @@
     if (!wallStarted) { introRunning = true; }
     settle();
   });
+  $("#enterIntro").addEventListener("click", () => { Sound.unlock(); startWall(); });
+  const soundBtn = $("#soundToggle");
+  const syncSoundBtn = () => {
+    soundBtn.textContent = Sound.isOn() ? "Sound on" : "Sound off";
+    soundBtn.setAttribute("aria-pressed", Sound.isOn() ? "true" : "false");
+  };
+  soundBtn.addEventListener("click", () => { Sound.unlock(); Sound.setOn(!Sound.isOn()); syncSoundBtn(); });
+  syncSoundBtn();
   document.addEventListener("keydown", (e) => {
-    if (introRunning && (e.key === "Escape" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); settle(); }
+    if (!introRunning) return;
+    if (e.target && e.target.closest && e.target.closest("button")) return; // let buttons handle their own keys
+    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); startWall(); }
+    else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") { e.preventDefault(); settle(); }
   });
-  $("#replayIntro").addEventListener("click", () => { if (!introRunning) playIntro(); });
+  $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(true); } });
   window.addEventListener("resize", () => { if (introRunning && wallStarted) layoutWall(); });
 
   /* ---------------------------------------------------------

@@ -23,6 +23,12 @@
       <img class="intro__mark" src="assets/dgmd-on-dark.svg" alt="">
       <p class="intro__eyebrow">Project 01</p>
       <p class="intro__headline">Typographic&nbsp;Exploration</p>
+      <div class="intro__gate">
+        <button class="intro__enter" id="enterIntro" type="button">
+          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0l9 5-9 5z"/></svg>Enter
+        </button>
+        <p class="intro__gate-note">Best with sound · about 20&nbsp;seconds</p>
+      </div>
     </div>
 
     <div class="spotlight" id="spotlight"></div>
@@ -44,7 +50,10 @@
       <span class="intro__count" id="introCount">01 / 14</span>
     </div>
 
-    <button class="intro__skip" id="skipIntro" type="button">Skip intro</button>
+    <div class="intro__controls">
+      <button class="intro__pill" id="soundToggle" type="button" aria-pressed="true">Sound on</button>
+      <button class="intro__pill" id="skipIntro" type="button">Skip intro</button>
+    </div>
   </div>
 
   <!-- ============ PAGE ============ -->

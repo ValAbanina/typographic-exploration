@@ -52,7 +52,8 @@ body.no-scroll { overflow: hidden; }
 /* ---------- Shared label styles ---------- */
 .eyebrow,
 .text-btn,
-.intro__skip,
+.intro__pill,
+.intro__gate-note,
 .intro__eyebrow,
 .intro__count,
 .listen__now {
@@ -237,7 +238,10 @@ body.intro-on .intro { display: block; }
   position: absolute; left: 0; right: 0;
   top: 50%; transform: translateY(-56%);
   opacity: 0;
+  pointer-events: none;   /* the wall is only to look at; never block the Enter button */
 }
+.intro__title { z-index: 4; }
+.intro.t3 .intro__title { pointer-events: none; }
 .intro.t3 .wall { opacity: 1; transition: opacity .8s ease .2s; }
 .wall__track { position: relative; z-index: 3; display: flex; align-items: flex-start; will-change: transform; }
 .wall__item { flex: none; }
@@ -329,15 +333,40 @@ body.intro-on .intro { display: block; }
 }
 .intro.t3 .intro__bar { opacity: 1; transition: opacity .8s ease .4s; }
 .intro__count { color: var(--grey); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.intro__skip {
-  position: absolute; top: 22px; right: var(--gutter);
+.intro__controls {
+  position: absolute; top: 22px; right: var(--gutter); z-index: 5;
+  display: flex; gap: 10px;
+}
+.intro__pill {
   color: var(--grey); padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px;
   transition: color .2s, border-color .2s;
 }
-.intro__skip:hover { color: var(--white); border-color: var(--teal); }
+.intro__pill:hover { color: var(--white); border-color: var(--teal); }
+#soundToggle[aria-pressed="false"] { color: #6c6e70; }
+
+/* the start gate: one click lets the browser play sound */
+.intro__gate {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  margin-top: 34px;
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+}
+.intro.t-gate .intro__gate { opacity: 1; transform: none; pointer-events: auto; transition: opacity .8s ease, transform .9s var(--ease-out); }
+.intro__enter {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 14px 30px 14px 26px; border-radius: 999px;
+  background: var(--teal); color: #000;
+  font-family: var(--font-head); font-weight: 700; font-size: 18px; line-height: 24px;
+  letter-spacing: .14em; text-transform: uppercase;
+  box-shadow: 0 0 0 0 rgba(0,171,171,.5);
+  animation: pulse 2.4s infinite;
+  transition: background .2s, transform .2s var(--ease-out);
+}
+.intro__enter svg { width: 12px; height: 12px; fill: currentColor; }
+.intro__enter:hover { background: #19c4c4; transform: scale(1.03); }
+.intro__gate-note { color: var(--grey); }
 .intro.is-leaving .intro__title,
 .intro.is-leaving .intro__bar,
-.intro.is-leaving .intro__skip,
+.intro.is-leaving .intro__controls,
 .intro.is-leaving .wall__label { opacity: 0; transition: opacity .4s ease; }
 
 /* ---------- Timeline (shared) ---------- */
