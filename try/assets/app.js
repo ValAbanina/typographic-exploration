@@ -19,6 +19,7 @@
   const ytUrl = (c) => `https://www.youtube.com/watch?v=${c.yt}`;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const PAGE = location.pathname + location.search;   // this page's own address, kept for the #cover links
   const store = {
     get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
@@ -673,7 +674,8 @@
     $("#listenGlow").style.setProperty("--tint", c.tint || "#006767");
     setListenTimeline(i);
     cards.forEach((card, k) => card.classList.toggle("is-current", k === i));
-    try { history.replaceState(null, "", `#${c.slug}`); } catch (e) { /* file:// etc. */ }
+    // full address (the preview's <base> would otherwise turn "#slug" into the main site's address)
+    try { history.replaceState(null, "", `${PAGE}#${c.slug}`); } catch (e) { /* file:// etc. */ }
   }
 
   function open(i, autoplay = true) {
@@ -724,7 +726,7 @@
     vinyl.classList.remove("is-out");
     listen.classList.remove("is-open");
     cards.forEach((card) => card.classList.remove("is-current"));
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* noop */ }
+    try { history.replaceState(null, "", PAGE); } catch (e) { /* noop */ }
     setTimeout(() => {
       listen.hidden = true;
       document.body.classList.remove("no-scroll");
