@@ -217,11 +217,13 @@
       bedOscs.forEach((o) => o.frequency.setTargetAtTime(o.frequency.value * 0.4, now(), 0.5)); // the chord sinks with it
       stop(1.6);
     }
-    // a small "plop" as it lands in the teal dot
+    // as it lands in the teal dot: a soft low thump (a record settling on a felt mat),
+    // then a warm, low closing chord — no bright "ding"
     function land() {
       if (!ready()) return;
-      tone(1320, { glideTo: 660, dur: 0.22, vol: 0.12 });
-      tone(660, { at: 0.06, dur: 0.4, vol: 0.06 });
+      tone(120, { glideTo: 80, dur: 0.3, vol: 0.3, filter: 400 });
+      [110, 164.81, 220, 261.63].forEach((f, k) =>
+        tone(f, { type: k === 0 ? "sine" : "triangle", at: 0.08, attack: 0.25, dur: 1.8, vol: [0.1, 0.05, 0.04, 0.03][k], filter: 1200 }));
     }
 
     return { unlock, start, speed, stop, hop, cover, spinDown, land, setOn, isOn: () => on };
