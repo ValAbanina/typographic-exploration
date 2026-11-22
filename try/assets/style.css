@@ -405,11 +405,11 @@ body.intro-on .intro { display: block; }
   opacity: 0; transform: translateY(8px); pointer-events: none;
 }
 .intro.t-gate .intro__gate { opacity: 1; transform: none; pointer-events: auto; transition: opacity .8s ease, transform .9s var(--ease-out); }
-/* speaker grille: a fine perforated dot texture in dark grey, margin to margin, fading upward */
+/* speaker grille: a fine perforated dot texture in dark grey, edge to edge, fading upward */
 @property --ring { syntax: "<length>"; inherits: false; initial-value: 0px; }
 .grille {
   --dot: #2a2c2c;
-  position: absolute; left: var(--gutter); right: var(--gutter); bottom: 0;
+  position: absolute; left: 0; right: 0; bottom: 0;      /* full bleed: edge to edge, no visible margins */
   height: clamp(140px, 30vh, 300px);
   pointer-events: none;
   background-image:
