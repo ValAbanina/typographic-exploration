@@ -13,11 +13,13 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const easeOut = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  const easeInOut = (t) => { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
   const smooth = (t) => t * t * (3 - 2 * t);
   const spUrl = (c) => `https://open.spotify.com/track/${c.sp}`;
   const ytUrl = (c) => `https://www.youtube.com/watch?v=${c.yt}`;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const PAGE = location.pathname + location.search;   // this page's own address, kept for the #cover links
   const store = {
     get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
@@ -41,6 +43,26 @@
     </button>`).join("");
   const cards = [...grid.querySelectorAll(".card")];
   const cardArts = cards.map((c) => $(".card__art", c));
+
+  // Long song names (ATYCHIPHOBIA, HEAVENSWARD…) never break mid-word: if a word is wider than
+  // its column, that title shrinks just enough for its longest word to fit.
+  function fitCardTitles() {
+    grid.querySelectorAll(".card__title").forEach((t) => {
+      t.style.fontSize = "";
+      const room = t.clientWidth;
+      if (!room) return;
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+      t.appendChild(probe);
+      const longest = Math.max(...t.textContent.replace(probe.textContent, "").split(/\s+/).map((w) => { probe.textContent = w; return probe.getBoundingClientRect().width; }));
+      probe.remove();
+      if (longest > room) t.style.fontSize = `${parseFloat(getComputedStyle(t).fontSize) * (room / longest) * 0.97}px`;
+    });
+  }
+  fitCardTitles();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCardTitles);
+  let cardFitTimer = 0;
+  window.addEventListener("resize", () => { clearTimeout(cardFitTimer); cardFitTimer = setTimeout(fitCardTitles, 100); });
 
   // On phones the student name drops to its own line (no dangling separator)
   const mq = window.matchMedia("(max-width: 760px)");
@@ -97,7 +119,9 @@
      --------------------------------------------------------- */
   const Sound = (() => {
     const AC = window.AudioContext || window.webkitAudioContext;
-    let ctx = null, master = null, loops = [], humGain = null;
+    let ctx = null, master = null, loops = [], humGain = null, bedOscs = [];
+    const BED = [1, 1.5, 2];             // root, fifth, octave: a soft open chord
+    const BED_MIX = [0.5, 0.28, 0.16];
     let on = store.get("sound") !== "off";
     // A minor pentatonic: each cover gets its own root note
     const SCALE = [220, 261.63, 293.66, 329.63, 392];
@@ -141,27 +165,41 @@
       o.start(t); o.stop(t + dur + 0.05);
     }
 
-    // a clean, quiet tone bed under the intro (a soft sine chord, no noise)
+    // a clean, quiet chord under the intro: it fades in slowly from silence,
+    // glides to each song's note as the record reaches its cover, and fades out at the end
     function start() {
       if (!ready()) return;
       stop(0.01);
-      const bed = ctx.createGain(); bed.gain.value = 0.0001;
+      const bed = ctx.createGain();
+      const t = now();
+      bed.gain.setValueAtTime(0, t);
+      bed.gain.linearRampToValueAtTime(0.012, t + 3);       // about 3 seconds to full level; kept quiet, it's only a backdrop
       bed.connect(master);
-      [110, 164.81, 220].forEach((f, k) => {
-        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
-        const g = ctx.createGain(); g.gain.value = [0.5, 0.3, 0.15][k];
+      bedOscs = BED.map((m, k) => {
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 220 * m;
+        const g = ctx.createGain(); g.gain.value = BED_MIX[k];
         o.connect(g); g.connect(bed); o.start();
         loops.push({ s: o, g });
+        return o;
       });
       loops.push({ s: null, g: bed });
       humGain = bed;
     }
-    // the bed swells gently while the record moves and fades when it slows
-    function speed(v) { if (ready() && humGain) humGain.gain.setTargetAtTime(0.05 + 0.07 * clamp(v, 0, 1.2), now(), 0.15); }
+    // move the chord to a new root note, gliding rather than jumping
+    function bedTo(root) {
+      if (!ready()) return;
+      bedOscs.forEach((o, k) => o.frequency.setTargetAtTime(root * BED[k], now(), 0.18));
+    }
+    function speed() { /* the chord no longer follows speed: it was what made it jump in */ }
     function stop(fade = 0.6) {
       if (!ctx) return;
-      loops.forEach(({ s, g }) => { g.gain.setTargetAtTime(0.0001, now(), fade / 3); if (s) { try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } } });
-      loops = []; humGain = null;
+      loops.forEach(({ s, g }) => {
+        g.gain.cancelScheduledValues(now());
+        g.gain.setValueAtTime(g.gain.value, now());
+        g.gain.setTargetAtTime(0.0001, now(), fade / 3);
+        if (s) { try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } }
+      });
+      loops = []; humGain = null; bedOscs = [];
     }
 
     // the jump through a gap: a soft kick, in time with the spike in the line
@@ -174,6 +212,7 @@
     function cover(i) {
       if (!ready()) return;
       const r = SCALE[i % SCALE.length];
+      bedTo(r);                             // the background chord moves to this song's note
       const kind = (COVERS[i] && COVERS[i].wave) || "calm";
       const P = {
         calm:    () => { tone(r, { attack: 0.25, dur: 1.4, vol: 0.1 }); tone(r * 1.5, { attack: 0.3, dur: 1.4, vol: 0.06 }); },
@@ -191,21 +230,29 @@
       (P[kind] || P.calm)();
     }
 
-    // the record slows down: the classic turntable "power-off" pitch drop
+    // the record slows down: the background chord sinks a little and fades (no falling 'bwoop' tone)
     function spinDown() {
       if (!ready()) return;
-      tone(220, { attack: 0.03, dur: 1.4, vol: 0.12, glideTo: 40 });
-      tone(330, { type: "triangle", attack: 0.03, dur: 1.4, vol: 0.06, glideTo: 60 });
-      stop(1.2);
+      bedOscs.forEach((o) => o.frequency.setTargetAtTime(o.frequency.value * 0.75, now(), 0.6)); // the chord sinks with it
+      stop(1.6);
     }
-    // a small "plop" as it lands in the teal dot
+    // as it lands in the teal dot: a soft low thump (a record settling on a felt mat),
+    // then a warm, low closing chord — no bright "ding"
     function land() {
       if (!ready()) return;
-      tone(1320, { glideTo: 660, dur: 0.22, vol: 0.12 });
-      tone(660, { at: 0.06, dur: 0.4, vol: 0.06 });
+      tone(196, { glideTo: 147, dur: 0.22, vol: 0.28, filter: 900 });
+      [220, 261.63, 329.63, 440].forEach((f, k) =>
+        tone(f, { type: "triangle", at: 0.1, attack: 0.3, dur: 2, vol: [0.09, 0.06, 0.06, 0.035][k], filter: 1800 }));
     }
 
-    return { unlock, start, speed, stop, hop, cover, spinDown, land, setOn, isOn: () => on };
+    // the grille breathing: a very soft swell, only possible once sound is allowed (e.g. after Replay)
+    function breath() {
+      if (!ready() || ctx.state !== "running") return;
+      tone(196, { attack: 0.7, dur: 2.2, vol: 0.03, filter: 800 });
+      tone(293.66, { attack: 0.8, dur: 2.2, vol: 0.018, filter: 800 });
+    }
+
+    return { unlock, start, speed, stop, hop, cover, spinDown, land, breath, setOn, isOn: () => on };
   })();
 
   /* ---------------------------------------------------------
@@ -259,13 +306,18 @@
     const r = D / 2;
     const floor = size + Math.round(D * 0.8);    // the line the record rolls on (its top tucks behind the covers)
     const amp = Math.max(6, Math.round(D * 0.14));
-    wallItems.forEach((it) => { it.style.width = `${size}px`; it.style.marginRight = `${gap}px`; });
+    // curved gallery: every cover stands on a big turning drum; the one at the front faces you
+    const drum = step * 1.8;                         // drum radius: smaller = stronger curve
+    wallItems.forEach((it) => { it.style.width = `${size}px`; it.style.left = `${Math.round(vw / 2 - size / 2)}px`; });
+    track.style.height = `${floor + amp + 18 + 72}px`;
+    track.style.perspective = `${Math.round(drum * 1.05)}px`;
+    track.style.perspectiveOrigin = `50% ${Math.round(size / 2)}px`;
     wallArts.forEach((a) => { a.style.width = a.style.height = `${size}px`; });
     wallLabels.forEach((l) => { l.style.marginTop = `${floor - size + amp + 18}px`; });
     roller.style.width = roller.style.height = `${D}px`;
 
     W = {
-      vw, size, gap, step, D, r, floor, amp,
+      vw, size, gap, step, D, r, floor, amp, drum,
       start: vw + 10,                                   // first cover just off the right edge
       end: vw / 2 - ((N - 1) * step + size / 2),        // last cover centred
       hop: D * 0.85,
@@ -328,10 +380,28 @@
   }
 
   // Place everything for a given track offset (x) and record screen position (sx)
-  function drawFrame(x, sx, lightAt) {
-    const { step, size, gap, r, floor, hop } = W;
-    track.style.transform = `translate3d(${x}px,0,0)`;
+  // bend = 1: full curve; 0: the gallery has straightened into a flat line
+  function drawFrame(x, sx, lightAt, bend = 1) {
+    const { step, size, gap, r, floor, hop, drum } = W;
+    if (intro.scrollTop) intro.scrollTop = 0;
     trail.style.transform = `translate3d(${x}px,0,0)`;
+
+    // turn the drum: the arc position at the centre of the screen is vw/2 - x
+    const c = W.vw / 2 - x;
+    for (let k = 0; k < N; k++) {
+      const arc = k * step + size / 2 - c;              // distance along the gallery from the front
+      const it = wallItems[k];
+      if (bend < 0.003) {                               // flat: a straight wall
+        if (it.style.visibility) it.style.visibility = "";
+        it.style.transform = `translate3d(${arc.toFixed(1)}px,0,0)`;
+        continue;
+      }
+      const rad = drum / bend;                          // a bigger radius = a gentler curve
+      const th = arc / rad;                             // this cover's angle from the front, in radians
+      if (Math.abs(th) > 1.45) { if (it.style.visibility !== "hidden") it.style.visibility = "hidden"; continue; }
+      if (it.style.visibility) it.style.visibility = "";
+      it.style.transform = `translateZ(${-rad.toFixed(1)}px) rotateY(${th.toFixed(5)}rad) translateZ(${rad.toFixed(1)}px)`;
+    }
 
     const xr = sx - x;                                   // record centre in wall coordinates
     const g = Math.round((xr - (size + gap / 2)) / step);   // nearest gap between two covers
@@ -372,6 +442,7 @@
     Sound.start();
     const t0 = performance.now();
     let exitT = 0;
+    let spunDown = false;
     const frame = (now) => {
       const t = now - t0;
       const p = Math.min(1, t / W.dur);
@@ -383,14 +454,16 @@
         rafId = requestAnimationFrame(frame);
         return;
       }
-      // the wall has stopped: the record rolls out from behind the last cover and spins down
-      if (!exitT) { exitT = now; Sound.spinDown(); }
-      const e = (now - exitT) / 1300;
-      const sx = W.vw / 2 + (W.exitTo - W.vw / 2) * easeOut(e);
-      drawFrame(x, sx, W.end * -1 + W.vw / 2);
+      // the gallery has stopped: the record eases out from under the last cover and slows to a stop,
+      // while the curve straightens so the covers can fly to the grid from exactly where they are
+      if (!exitT) exitT = now;
+      const e = (now - exitT) / 1700;
+      if (e > 0.35 && !spunDown) { spunDown = true; Sound.spinDown(); }
+      const sx = W.vw / 2 + (W.exitTo - W.vw / 2) * easeInOut(e);
+      drawFrame(x, sx, W.end * -1 + W.vw / 2, 1 - easeInOut(e));
       setIntroTimeline(N - 1, 1);
       if (e < 1) rafId = requestAnimationFrame(frame);
-      else introTimers.push(setTimeout(settle, 450));
+      else introTimers.push(setTimeout(settle, 250));
     };
     rafId = requestAnimationFrame(frame);
   }
@@ -411,21 +484,33 @@
     window.scrollTo(0, 0);
     document.body.classList.add("intro-on", "no-scroll");
     intro.classList.remove("t1", "t2", "t3", "t-gate", "is-leaving");
+    if (grille) grille.classList.remove("is-leaving");
     wall.style.visibility = "";
     resetRoller();
-    track.style.transform = `translate3d(${window.innerWidth + 10}px,0,0)`;
+    wallItems.forEach((it) => { it.style.visibility = "hidden"; });
     grid.classList.add("is-settling");
     const at = (ms, fn) => introTimers.push(setTimeout(fn, ms));
     at(150, () => intro.classList.add("t1"));
     at(1100, () => intro.classList.add("t2"));
     if (clicked) at(3500, startWall);
-    else at(2300, () => intro.classList.add("t-gate"));   // Enter or Space on the keyboard also starts it
+    else at(2300, () => { intro.classList.add("t-gate"); startBreathing(); });   // Enter or Space on the keyboard also starts it
   }
+
+  // a soft breath in time with each ring of light in the grille (CSS: 0.8 s delay, every 3.6 s)
+  let breathTimers = [];
+  function startBreathing() {
+    stopBreathing();
+    breathTimers.push(setTimeout(function beat() {
+      Sound.breath();
+      breathTimers.push(setTimeout(beat, 3600));
+    }, 800));
+  }
+  function stopBreathing() { breathTimers.forEach(clearTimeout); breathTimers = []; }
 
   function startWall() {
     if (!introRunning || wallStarted) return;
-    intro.classList.remove("t-gate");
-    intro.classList.add("t3");
+    stopBreathing();
+    intro.classList.add("t3");          // the title (with Enter and the pile) fades out on its own
     runWall();
   }
 
@@ -456,6 +541,7 @@
     if (!introRunning) return;
     introRunning = false;
     clearIntroTimers();
+    stopBreathing();
     store.set("introSeen", "1");
     window.scrollTo(0, 0);
 
@@ -505,7 +591,16 @@
     setTimeout(() => grid.classList.remove("is-settling"), canFly ? 900 : 300);
   }
 
-  $("#enterIntro").addEventListener("click", () => { Sound.unlock(); startWall(); });
+  // the speaker grille under the title: it breathes while waiting, and beats once on Enter
+  const grille = $("#grille");
+  const stack = grille;
+
+  $("#enterIntro").addEventListener("click", () => {
+    Sound.unlock();
+    Sound.hop();                       // the grille's beat, heard
+    if (stack) stack.classList.add("is-leaving");
+    startWall();
+  });
   const soundBtn = $("#soundToggle");
   const syncSoundBtn = () => {
     soundBtn.setAttribute("aria-label", Sound.isOn() ? "Sound on" : "Sound off");
@@ -516,10 +611,11 @@
   document.addEventListener("keydown", (e) => {
     if (!introRunning) return;
     if (e.target && e.target.closest && e.target.closest("button")) return; // let buttons handle their own keys
-    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); startWall(); }
+    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); if (grille) grille.classList.add("is-leaving"); startWall(); }
     else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") { e.preventDefault(); settle(); }
   });
-  $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(true); } });
+  // Replay intro goes back to the title screen (Enter + the breathing grille), like the first visit
+  $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(false); } });
   window.addEventListener("resize", () => { if (introRunning && wallStarted) layoutWall(); });
 
   /* ---------------------------------------------------------
@@ -566,6 +662,7 @@
   function onPlayback(e) {
     const d = (e && e.data) || {};
     const playing = !d.isPaused && !d.isBuffering;
+    if (playing) hideTap();
     vinyl.classList.toggle("is-spinning", playing);
     if (playing) fallback.hidden = true;
     if (performance.now() < pb.ignoreUntil) { pb.pos = d.position || 0; return; }
@@ -628,7 +725,33 @@
     $("#listenGlow").style.setProperty("--tint", c.tint || "#006767");
     setListenTimeline(i);
     cards.forEach((card, k) => card.classList.toggle("is-current", k === i));
-    try { history.replaceState(null, "", `#${c.slug}`); } catch (e) { /* file:// etc. */ }
+    // full address (the preview's <base> would otherwise turn "#slug" into the main site's address)
+    try { history.replaceState(null, "", `${PAGE}#${c.slug}`); } catch (e) { /* file:// etc. */ }
+  }
+
+  /* Opening a song's own link (…#espresso): try to play straight away. Browsers often block
+     sound before the visitor has clicked anything; then the first click anywhere starts it. */
+  const tapHint = $("#tapToPlay");
+  let tapArmed = false;
+  function hideTap() {
+    tapHint.hidden = true;
+    if (tapArmed) { tapArmed = false; document.removeEventListener("pointerdown", onFirstTap, true); document.removeEventListener("keydown", onFirstTap, true); }
+  }
+  function onFirstTap(e) {
+    if (e.target && e.target.closest && e.target.closest("#listenClose")) { hideTap(); return; } // closing: don't start music
+    hideTap();
+    if (ctl && !listen.hidden) ctl.play(); else wantPlay = true;
+  }
+  function armTapToPlay() {
+    setTimeout(() => {
+      if (listen.hidden || pb.playing) return;          // it's already playing (or closed): nothing to do
+      tapHint.hidden = false;
+      if (!tapArmed) {
+        tapArmed = true;
+        document.addEventListener("pointerdown", onFirstTap, true);
+        document.addEventListener("keydown", onFirstTap, true);
+      }
+    }, 2500);
   }
 
   function open(i, autoplay = true) {
@@ -654,22 +777,33 @@
     current = next;
     clearTimeout(swapTimer);
     listen.classList.add("is-swapping");
-    vinyl.classList.remove("is-out", "is-spinning");
+    vinyl.classList.remove("is-out", "is-spinning");    // the record slides back into its sleeve
+    // get the next cover ready while that happens, then swap it in behind the closed sleeve
+    const pre = new Image(); pre.src = img(COVERS[current], 1600);
+    const target = current;
     swapTimer = setTimeout(() => {
-      fill(current);
-      listen.classList.remove("is-swapping");
-      setTimeout(() => vinyl.classList.add("is-out"), reduceMotion ? 0 : 250);
-    }, reduceMotion ? 0 : 320);
+      let swapped = false;
+      const swap = () => {
+        if (swapped || target !== current) return;
+        swapped = true;
+        fill(current);
+        listen.classList.remove("is-swapping");
+        setTimeout(() => vinyl.classList.add("is-out"), reduceMotion ? 0 : 200); // the new record slides out
+      };
+      if (pre.complete || reduceMotion) swap();
+      else { pre.onload = pre.onerror = swap; setTimeout(swap, 600); }
+    }, reduceMotion ? 0 : 560);
     loadSong(current, autoplay);
   }
 
   function close() {
     if (listen.hidden) return;
+    hideTap();
     stopSong();
     vinyl.classList.remove("is-out");
     listen.classList.remove("is-open");
     cards.forEach((card) => card.classList.remove("is-current"));
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* noop */ }
+    try { history.replaceState(null, "", PAGE); } catch (e) { /* noop */ }
     setTimeout(() => {
       listen.hidden = true;
       document.body.classList.remove("no-scroll");
@@ -704,12 +838,67 @@
   });
 
   /* ---------------------------------------------------------
+     Title: TYPOGRAPHIC and EXPLORATION (11 letters each) set to the same width,
+     by opening up the letter spacing of the narrower word a touch
+     --------------------------------------------------------- */
+  function fitTitle() {
+    const lines = [...document.querySelectorAll(".hero__line")];
+    if (lines.length < 2) return;
+    const h1 = lines[0].parentElement;
+    h1.style.fontSize = "";
+    lines.forEach((l) => { l.style.letterSpacing = ""; l.style.marginRight = ""; });
+    // never wider than the space it has (narrow phones, or a wider fallback font)
+    const room = h1.parentElement.clientWidth || h1.clientWidth;
+    const natural = Math.max(...lines.map((l) => l.getBoundingClientRect().width));
+    if (room && natural > room) {
+      h1.style.fontSize = `${parseFloat(getComputedStyle(h1).fontSize) * (room / natural) * 0.98}px`;
+    }
+    const w = lines.map((l) => l.getBoundingClientRect().width);
+    const widest = Math.max(...w);
+    lines.forEach((l, i) => {
+      const extra = widest - w[i];
+      if (extra < 0.5) return;
+      const n = l.textContent.trim().length;
+      const add = extra / (n - 1);                       // spread across the gaps between letters
+      const base = parseFloat(getComputedStyle(l).letterSpacing) || 0;
+      l.style.letterSpacing = `${base + add}px`;
+      l.style.marginRight = `${-(base + add)}px`;        // no extra space after the last letter
+    });
+  }
+  fitTitle();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
+
+  /* Title screen: the DGMD logo is never wider than TYPOGRAPHIC EXPLORATION.
+     Where the title wraps to two lines (phones), the logo matches its width exactly. */
+  function fitIntroMark() {
+    const mark = $(".intro__mark"), head = $(".intro__headline");
+    if (!mark || !head) return;
+    // measure the title as it looks once settled (its letter-spacing animates in)
+    const probe = document.createElement("span");
+    const cs = getComputedStyle(head);
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font:${cs.font};text-transform:uppercase;letter-spacing:-0.01em`;
+    document.body.appendChild(probe);
+    const width = (t) => { probe.textContent = t; return probe.getBoundingClientRect().width; };
+    const room = head.parentElement.clientWidth - 48;          // the title area minus its padding
+    const full = width("Typographic Exploration");
+    const titleWidth = full <= room ? full : Math.max(width("Typographic"), width("Exploration"));
+    probe.remove();
+    mark.style.width = `${Math.round(Math.min(420, titleWidth))}px`;
+  }
+  fitIntroMark();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitIntroMark);
+  window.addEventListener("resize", fitIntroMark);
+  let fitTimer = 0;
+  window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitTitle, 80); });
+
+  /* ---------------------------------------------------------
      Start
      --------------------------------------------------------- */
   document.body.classList.remove("is-loading");
   const deep = COVERS.findIndex((c) => `#${c.slug}` === location.hash);
   if (deep >= 0) {
-    open(deep, false);
+    open(deep, true);        // try to play right away
+    armTapToPlay();          // if the browser blocked it, the first click anywhere plays
   } else if (!reduceMotion && store.get("introSeen") !== "1") {
     playIntro();
   }

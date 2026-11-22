@@ -12,7 +12,9 @@ Plain HTML, CSS and JavaScript. No build step and nothing to install.
 | `assets/style.css` | All styling. DGMD colours and type are set at the top as variables |
 | `assets/app.js` | Intro animation (the rolling record), grid, listening view, Spotify player |
 | `assets/data.js` | **The list of covers.** Edit this to change order, names or songs |
-| `assets/dgmd-on-dark.svg` | DGMD wordmark (on-dark version, from the GROW Workspace Figma file) |
+| `assets/dgmd-on-dark.svg` | DGMD wordmark, horizontal, on-dark (from the GROW Workspace Figma file) |
+| `assets/dgmd-vertical-grey.svg`, `assets/dgmd-vertical-on-dark.svg` | DGMD vertical (three-line) wordmark in vector, built from the official letterforms to match the brand file's PNG-only vertical export. The grey one is used in the footer |
+| `assets/social/` | Link-preview images: `og-1200x630.jpg` (wide: Facebook, LinkedIn, X, Slack…) and `og-1200x1200.jpg` (square). JPG because social sites don't accept vector images |
 | `covers/` | Each cover as `<slug>-1600.webp` (large) and `<slug>-640.webp` (grid) |
 
 ## Put it on GitHub Pages

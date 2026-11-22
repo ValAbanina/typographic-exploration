@@ -3,30 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- security: only this site's own code and Spotify's player may run; nothing else can be injected -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://open.spotify.com https://embed-cdn.spotifycdn.com; frame-src https://open.spotify.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.spotify.com https://*.spotifycdn.com; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Typographic Exploration — Album Covers · Digital Media &amp; Design, Langara</title>
   <meta name="description" content="Fourteen album covers by Langara Digital Media &amp; Design students, using typography as the only image. Click a cover to hear the song.">
   <meta name="theme-color" content="#111212">
   <meta property="og:title" content="Typographic Exploration — Album Covers">
   <meta property="og:description" content="Fourteen album covers where type is the only image. Click a cover to hear the song.">
-  <meta property="og:image" content="covers/stupid-brain-1600.webp">
+  <link rel="canonical" href="https://valabanina.github.io/typographic-exploration/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Digital Media &amp; Design · Langara College">
+  <meta property="og:url" content="https://valabanina.github.io/typographic-exploration/">
+  <!-- wide image first (Facebook, LinkedIn, X, Slack, Discord…), square second (apps that show square thumbnails) -->
+  <meta property="og:image" content="https://valabanina.github.io/typographic-exploration/assets/social/og-1200x630.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Typographic Exploration: student album covers on a curved gallery wall, with a teal record and sound line. Digital Media &amp; Design, Langara College.">
+  <meta property="og:image" content="https://valabanina.github.io/typographic-exploration/assets/social/og-1200x1200.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="Typographic Exploration: student album covers on a curved gallery wall, with a teal record and sound line. Digital Media &amp; Design, Langara College.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Typographic Exploration — Album Covers">
+  <meta name="twitter:description" content="Fourteen album covers where type is the only image. Click a cover to hear the song.">
+  <meta name="twitter:image" content="https://valabanina.github.io/typographic-exploration/assets/social/og-1200x630.jpg">
+  <meta name="twitter:image:alt" content="Typographic Exploration: student album covers on a curved gallery wall, with a teal record and sound line. Digital Media &amp; Design, Langara College.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700;800&family=Roboto:wght@300;400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700;800&family=Roboto:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?v=202611212222">
 </head>
 <body class="is-loading">
 
   <!-- ============ INTRO ============ -->
   <div class="intro" id="intro" aria-hidden="true">
     <div class="intro__title" id="introTitle">
-      <img class="intro__mark" src="assets/dgmd-on-dark.svg" alt="">
+      <img class="intro__mark" src="assets/dgmd-on-dark.svg" alt="" width="480" height="99">
       <p class="intro__eyebrow">Project 01</p>
-      <p class="intro__headline">Typographic&nbsp;Exploration</p>
+      <p class="intro__headline">Typographic Exploration</p>
       <div class="intro__gate">
         <button class="intro__enter" id="enterIntro" type="button">Enter</button>
       </div>
     </div>
+
+    <!-- a speaker grille across the bottom of the title screen; it "breathes" while waiting for Enter -->
+    <div class="grille" id="grille" aria-hidden="true"><div class="grille__pulse"></div></div>
 
     <div class="spotlight" id="spotlight"></div>
 
@@ -62,26 +87,33 @@
   <!-- ============ PAGE ============ -->
   <header class="site-header">
     <a class="site-header__mark" href="#top" aria-label="Digital Media &amp; Design, Langara College">
-      <img src="assets/dgmd-on-dark.svg" alt="Digital Media &amp; Design">
+      <img src="assets/dgmd-on-dark.svg" alt="Digital Media &amp; Design" width="165" height="34">
     </a>
     <button class="text-btn" id="replayIntro" type="button">Replay intro</button>
   </header>
 
   <main id="top">
     <section class="hero">
-      <p class="eyebrow">Project 01 · Visual Storytelling I</p>
-      <h1 class="hero__title">Typographic Exploration</h1>
-      <p class="hero__lede">Each student chose a song and turned it into an album&nbsp;cover where typography is the only image: rhythm, volume and emotion, made visible through&nbsp;type.</p>
-      <p class="hero__hint"><span class="hint-dot" aria-hidden="true"></span>Click a cover to&nbsp;listen</p>
+      <div class="hero__head">
+        <p class="eyebrow">Project 01 · Visual Storytelling I</p>
+        <h1 class="hero__title"><span class="hero__line">Typographic</span> <span class="hero__line">Exploration</span></h1>
+      </div>
+      <div class="hero__side">
+        <p class="hero__lede">Each student chose a song and turned it into an album&nbsp;cover where typography is the only&nbsp;image:
+          <span class="hero__show"><span class="w-rhythm">rhythm</span>, <span class="w-volume">volume</span> <span class="w-amp" aria-label="and">&amp;</span> <span class="w-emotion">emotion</span>, made visible through&nbsp;type.</span></p>
+        <p class="hero__hint"><span class="hint-dot" aria-hidden="true"></span>Click a cover to&nbsp;listen</p>
+      </div>
     </section>
 
     <section class="grid" id="grid" aria-label="Album covers"></section>
   </main>
 
   <footer class="site-footer">
-    <img src="assets/dgmd-on-dark.svg" alt="Digital Media &amp; Design" class="site-footer__mark">
-    <p>Visual Storytelling I · Digital Media &amp; Design · Langara&nbsp;College · Fall&nbsp;2026</p>
-    <p class="site-footer__fine">Album covers © the student designers. Songs play from Spotify, with full songs linked on YouTube. All music rights belong to the artists and their&nbsp;labels.</p>
+    <img src="assets/dgmd-vertical-grey.svg" alt="Digital Media &amp; Design" class="site-footer__mark" width="110" height="72">
+    <div class="site-footer__text">
+      <p>Visual Storytelling I · Digital Media &amp; Design · Langara&nbsp;College · Fall&nbsp;2026</p>
+      <p class="site-footer__fine">Album covers © the student designers. Songs play from Spotify, with full songs linked on YouTube. All music rights belong to the artists and their&nbsp;labels.</p>
+    </div>
   </footer>
 
   <!-- ============ LISTENING VIEW ============ -->
@@ -105,8 +137,9 @@
 
         <div class="player">
           <div class="player__frame"><div id="spPlayer"></div></div>
-          <p class="player__fallback" id="spFallback" hidden>The player can’t load here. <a id="spLink" href="#" target="_blank" rel="noopener">Open in Spotify&nbsp;↗</a></p>
-          <p class="player__more"><a id="ytLink" href="#" target="_blank" rel="noopener">Full song on YouTube&nbsp;↗</a></p>
+          <p class="player__fallback" id="spFallback" hidden>The player can’t load here. <a id="spLink" href="#" target="_blank" rel="noopener noreferrer">Open in Spotify&nbsp;↗</a></p>
+          <p class="player__tap" id="tapToPlay" hidden><span class="hint-dot" aria-hidden="true"></span>Click anywhere to&nbsp;play</p>
+          <p class="player__more"><a id="ytLink" href="#" target="_blank" rel="noopener noreferrer">Full song on YouTube&nbsp;↗</a></p>
         </div>
 
         <div class="listen__nav">
@@ -126,7 +159,7 @@
     </div>
   </div>
 
-  <script src="assets/data.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="assets/data.js?v=202611212222"></script>
+  <script src="assets/app.js?v=202611212222"></script>
 </body>
 </html>
