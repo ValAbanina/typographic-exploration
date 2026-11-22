@@ -98,7 +98,9 @@
      --------------------------------------------------------- */
   const Sound = (() => {
     const AC = window.AudioContext || window.webkitAudioContext;
-    let ctx = null, master = null, loops = [], humGain = null;
+    let ctx = null, master = null, loops = [], humGain = null, bedOscs = [];
+    const BED = [1, 1.5, 2];             // root, fifth, octave: a soft open chord
+    const BED_MIX = [0.5, 0.28, 0.16];
     let on = store.get("sound") !== "off";
     // A minor pentatonic: each cover gets its own root note
     const SCALE = [220, 261.63, 293.66, 329.63, 392];
@@ -142,27 +144,41 @@
       o.start(t); o.stop(t + dur + 0.05);
     }
 
-    // a clean, quiet tone bed under the intro (a soft sine chord, no noise)
+    // a clean, quiet chord under the intro: it fades in slowly from silence,
+    // glides to each song's note as the record reaches its cover, and fades out at the end
     function start() {
       if (!ready()) return;
       stop(0.01);
-      const bed = ctx.createGain(); bed.gain.value = 0.0001;
+      const bed = ctx.createGain();
+      const t = now();
+      bed.gain.setValueAtTime(0, t);
+      bed.gain.linearRampToValueAtTime(0.1, t + 3);        // about 3 seconds to full level
       bed.connect(master);
-      [110, 164.81, 220].forEach((f, k) => {
-        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
-        const g = ctx.createGain(); g.gain.value = [0.5, 0.3, 0.15][k];
+      bedOscs = BED.map((m, k) => {
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 110 * m;
+        const g = ctx.createGain(); g.gain.value = BED_MIX[k];
         o.connect(g); g.connect(bed); o.start();
         loops.push({ s: o, g });
+        return o;
       });
       loops.push({ s: null, g: bed });
       humGain = bed;
     }
-    // the bed swells gently while the record moves and fades when it slows
-    function speed(v) { if (ready() && humGain) humGain.gain.setTargetAtTime(0.05 + 0.07 * clamp(v, 0, 1.2), now(), 0.15); }
+    // move the chord to a new root note, gliding rather than jumping
+    function bedTo(root) {
+      if (!ready()) return;
+      bedOscs.forEach((o, k) => o.frequency.setTargetAtTime(root * BED[k], now(), 0.18));
+    }
+    function speed() { /* the chord no longer follows speed: it was what made it jump in */ }
     function stop(fade = 0.6) {
       if (!ctx) return;
-      loops.forEach(({ s, g }) => { g.gain.setTargetAtTime(0.0001, now(), fade / 3); if (s) { try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } } });
-      loops = []; humGain = null;
+      loops.forEach(({ s, g }) => {
+        g.gain.cancelScheduledValues(now());
+        g.gain.setValueAtTime(g.gain.value, now());
+        g.gain.setTargetAtTime(0.0001, now(), fade / 3);
+        if (s) { try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } }
+      });
+      loops = []; humGain = null; bedOscs = [];
     }
 
     // the jump through a gap: a soft kick, in time with the spike in the line
@@ -175,6 +191,7 @@
     function cover(i) {
       if (!ready()) return;
       const r = SCALE[i % SCALE.length];
+      bedTo(r / 2);                         // the background chord moves to this song's note
       const kind = (COVERS[i] && COVERS[i].wave) || "calm";
       const P = {
         calm:    () => { tone(r, { attack: 0.25, dur: 1.4, vol: 0.1 }); tone(r * 1.5, { attack: 0.3, dur: 1.4, vol: 0.06 }); },
@@ -197,7 +214,8 @@
       if (!ready()) return;
       tone(220, { attack: 0.03, dur: 1.4, vol: 0.12, glideTo: 40 });
       tone(330, { type: "triangle", attack: 0.03, dur: 1.4, vol: 0.06, glideTo: 60 });
-      stop(1.2);
+      bedOscs.forEach((o) => o.frequency.setTargetAtTime(o.frequency.value * 0.4, now(), 0.5)); // the chord sinks with it
+      stop(1.6);
     }
     // a small "plop" as it lands in the teal dot
     function land() {
