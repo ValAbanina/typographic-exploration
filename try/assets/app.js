@@ -152,7 +152,7 @@
       const bed = ctx.createGain();
       const t = now();
       bed.gain.setValueAtTime(0, t);
-      bed.gain.linearRampToValueAtTime(0.03, t + 3);       // about 3 seconds to full level; kept quiet, it's only a backdrop
+      bed.gain.linearRampToValueAtTime(0.012, t + 3);       // about 3 seconds to full level; kept quiet, it's only a backdrop
       bed.connect(master);
       bedOscs = BED.map((m, k) => {
         const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 220 * m;
