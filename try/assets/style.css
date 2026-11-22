@@ -405,29 +405,32 @@ body.intro-on .intro { display: block; }
   opacity: 0; transform: translateY(8px); pointer-events: none;
 }
 .intro.t-gate .intro__gate { opacity: 1; transform: none; pointer-events: auto; transition: opacity .8s ease, transform .9s var(--ease-out); }
-/* a pile of 14 records seen from the side: only their edges, each in its cover's colour */
-.stack {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  margin-top: 34px; width: min(260px, 62vw);
+/* a crate of records standing upright, spines out, from margin to margin */
+.crate {
+  position: absolute; left: var(--gutter); right: var(--gutter); bottom: clamp(28px, 6vh, 64px);
+  height: clamp(70px, 15vh, 150px);
+  display: flex; align-items: flex-end; gap: 1px;
+  pointer-events: none;
 }
-.stack__edge {
-  width: var(--w, 100%); height: 4px; border-radius: 1px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 78%, #000), var(--c) 18%, var(--c) 82%, color-mix(in srgb, var(--c) 70%, #000));
-  box-shadow: 0 -1px 0 rgba(255,255,255,.14) inset, 0 1px 0 rgba(0,0,0,.6);   /* a thin highlight so even near-black sleeves show */
-  transform: translate(var(--x, 0px), -14px) rotate(var(--r, 0deg));
+.crate__spine {
+  flex: none; width: var(--w); height: var(--h);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 92%, #fff) 0, var(--c) 6%, color-mix(in srgb, var(--c) 82%, #000) 100%);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.10), inset -1px 0 0 rgba(0,0,0,.45);   /* thin light and dark edges so every sleeve reads */
+  transform-origin: 50% 100%;
+  transform: rotate(var(--lean, 0deg)) scaleY(0);
   opacity: 0;
 }
-/* they settle into the pile one by one when the Enter appears */
-.intro.t-gate .stack__edge {
-  transform: translate(var(--x, 0px), 0) rotate(var(--r, 0deg)); opacity: 1;
-  transition: transform .7s var(--ease-out) var(--d, 0s), opacity .5s ease var(--d, 0s);
+/* when Enter appears, the records rise in a quick wave from left to right */
+.intro.t-gate .crate__spine {
+  transform: rotate(var(--lean, 0deg)) scaleY(1); opacity: 1;
+  transition: transform .55s var(--ease-out) var(--d, 0s), opacity .3s ease var(--d, 0s);
 }
-/* on Enter they fan out and are taken away, as the record rolls in */
-.stack.is-leaving .stack__edge {
-  transform: translate(calc(var(--x, 0px) + var(--fx, 0px)), -6px) rotate(calc(var(--r, 0deg) + var(--fr, 0deg)));
-  opacity: 0;
-  transition: transform .6s var(--ease-in-out) var(--ld, 0s), opacity .45s ease var(--ld, 0s);
+/* on Enter they flip forward one after another, like flipping through a crate, and fade */
+.crate.is-leaving .crate__spine {
+  transform: rotate(calc(var(--lean, 0deg) + 24deg)) scaleY(.92); opacity: 0;
+  transition: transform .45s var(--ease-in-out) var(--ld, 0s), opacity .4s ease var(--ld, 0s);
 }
+.intro.t3:not(.t-gate) .crate { display: none; }
 
 /* quiet, typographic: just the word, with a thin teal underline that grows on hover */
 .intro__enter {

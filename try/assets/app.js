@@ -457,7 +457,7 @@
     window.scrollTo(0, 0);
     document.body.classList.add("intro-on", "no-scroll");
     intro.classList.remove("t1", "t2", "t3", "t-gate", "is-leaving");
-    const pile = $("#stack"); if (pile) pile.classList.remove("is-leaving");
+    if (crate) { crate.classList.remove("is-leaving"); buildCrate(); }
     wall.style.visibility = "";
     resetRoller();
     wallItems.forEach((it) => { it.style.visibility = "hidden"; });
@@ -551,19 +551,42 @@
     setTimeout(() => grid.classList.remove("is-settling"), canFly ? 900 : 300);
   }
 
-  // the pile of record edges under Enter (first cover on top), slightly uneven like a real pile
-  const stack = $("#stack");
-  if (stack) {
-    stack.innerHTML = COVERS.map((c, i) => {
-      const h = (k) => { const v = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
-      const w = 84 + h(1) * 16;                         // 84–100% wide
-      const x = (h(2) - 0.5) * 14;                      // a few px left or right
-      const r = (h(3) - 0.5) * 1.4;                     // a hair of tilt
-      const side = i % 2 ? 1 : -1;
-      return `<span class="stack__edge" style="--c:${c.tint || "#006767"};--w:${w.toFixed(1)}%;--x:${x.toFixed(1)}px;--r:${r.toFixed(2)}deg;` +
-        `--d:${(0.05 * (N - 1 - i)).toFixed(2)}s;--ld:${(0.03 * i).toFixed(2)}s;--fx:${(side * (40 + h(4) * 60)).toFixed(0)}px;--fr:${(side * (4 + h(5) * 6)).toFixed(1)}deg"></span>`;
+  // a crate of records standing upright across the bottom of the title screen: many dark sleeves,
+  // with the 14 students' cover colours scattered among them
+  const crate = $("#crate");
+  const SLEEVES = ["#1c1d1d", "#232424", "#2a2b2b", "#191a1a", "#303131", "#26292a", "#1f2221"];
+  function buildCrate() {
+    if (!crate) return;
+    const width = crate.clientWidth || window.innerWidth * 0.9;
+    const rnd = (k) => { const v = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return v - Math.floor(v); };
+    const spines = [];
+    let used = 0, k = 0;
+    while (used < width) {                                // fill the row edge to edge
+      const w = 3 + Math.round(rnd(k * 3 + 1) * 6);       // 3–9 px thick
+      if (used + w + 1 > width) break;
+      spines.push(w); used += w + 1; k++;
+    }
+    const n = spines.length;
+    // spread the 14 cover colours evenly through the row, with a little jitter
+    const coloured = new Map();
+    COVERS.forEach((c, i) => {
+      const at = Math.min(n - 1, Math.max(0, Math.round(((i + 0.5) / N) * n + (rnd(i + 99) - 0.5) * (n / N) * 0.6)));
+      coloured.set(at, c.tint || "#006767");
+    });
+    crate.innerHTML = spines.map((w, i) => {
+      const featured = coloured.has(i);
+      const c = featured ? coloured.get(i) : SLEEVES[Math.floor(rnd(i * 7 + 3) * SLEEVES.length)];
+      const h = featured ? 96 + rnd(i + 5) * 4 : 84 + rnd(i * 5 + 2) * 14;   // most sleeves 84–98%, the students' a touch taller
+      const lean = rnd(i * 11 + 7) > 0.93 ? ((rnd(i + 13) - 0.5) * 7).toFixed(1) : 0;  // the odd record leans
+      const d = (i / n) * 0.6, ld = (i / n) * 0.55;
+      return `<span class="crate__spine" style="--w:${w}px;--h:${h.toFixed(1)}%;--c:${c};--lean:${lean}deg;--d:${d.toFixed(3)}s;--ld:${ld.toFixed(3)}s"></span>`;
     }).join("");
   }
+  buildCrate();
+  let crateTimer = 0;
+  window.addEventListener("resize", () => { clearTimeout(crateTimer); crateTimer = setTimeout(() => { if (!crate.classList.contains("is-leaving")) buildCrate(); }, 120); });
+  const stack = crate;  // the Enter button sends the crate away
+
   $("#enterIntro").addEventListener("click", () => {
     Sound.unlock();
     if (stack) stack.classList.add("is-leaving");
@@ -579,7 +602,7 @@
   document.addEventListener("keydown", (e) => {
     if (!introRunning) return;
     if (e.target && e.target.closest && e.target.closest("button")) return; // let buttons handle their own keys
-    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); const pile = $("#stack"); if (pile) pile.classList.add("is-leaving"); startWall(); }
+    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); if (crate) crate.classList.add("is-leaving"); startWall(); }
     else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") { e.preventDefault(); settle(); }
   });
   $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(true); } });
