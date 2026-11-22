@@ -749,6 +749,31 @@
   });
 
   /* ---------------------------------------------------------
+     Title: TYPOGRAPHIC and EXPLORATION (11 letters each) set to the same width,
+     by opening up the letter spacing of the narrower word a touch
+     --------------------------------------------------------- */
+  function fitTitle() {
+    const lines = [...document.querySelectorAll(".hero__line")];
+    if (lines.length < 2) return;
+    lines.forEach((l) => { l.style.letterSpacing = ""; l.style.marginRight = ""; });
+    const w = lines.map((l) => l.getBoundingClientRect().width);
+    const widest = Math.max(...w);
+    lines.forEach((l, i) => {
+      const extra = widest - w[i];
+      if (extra < 0.5) return;
+      const n = l.textContent.trim().length;
+      const add = extra / (n - 1);                       // spread across the gaps between letters
+      const base = parseFloat(getComputedStyle(l).letterSpacing) || 0;
+      l.style.letterSpacing = `${base + add}px`;
+      l.style.marginRight = `${-(base + add)}px`;        // no extra space after the last letter
+    });
+  }
+  fitTitle();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
+  let fitTimer = 0;
+  window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitTitle, 80); });
+
+  /* ---------------------------------------------------------
      Start
      --------------------------------------------------------- */
   document.body.classList.remove("is-loading");

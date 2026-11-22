@@ -85,7 +85,7 @@ body.no-scroll { overflow: hidden; }
 @media (min-width: 1000px) {
   .hero {
     --t: clamp(42px, 7.2vw, 104px);                 /* the title's size (same as .hero__title) */
-    grid-template-columns: auto minmax(280px, 25em);
+    grid-template-columns: auto auto;
     grid-template-rows: auto auto;
     justify-content: start; align-items: stretch;
     column-gap: clamp(40px, 4vw, 72px);
@@ -98,13 +98,19 @@ body.no-scroll { overflow: hidden; }
     /* start where the title's letters start (below the eyebrow) */
     padding-top: calc(18px + 14px + var(--t) * 0.06);
     padding-bottom: calc(var(--t) * 0.06);
-    font-size: calc(var(--t) * 0.19);
-    line-height: calc(var(--t) * 0.92 / 3);      /* 3 text lines = 1 title line */
+    font-size: calc(var(--t) * 0.175);
+    line-height: calc(var(--t) * 0.92 / 3);      /* the 3 text lines fill the TYPOGRAPHIC line; the hint sits on EXPLORATION */
   }
-  .hero__side .hero__lede { margin-top: 0; font-size: inherit; line-height: inherit; max-width: none; }
+  /* three long lines: the column is exactly as wide as the last line,
+     and the first sentence splits evenly into two lines above it */
+  .hero__side .hero__lede { margin-top: 0; font-size: inherit; line-height: inherit; max-width: none; width: min-content; text-wrap: balance; }
+  .hero__side .hero__show { white-space: nowrap; }
   .hero__side .hero__hint { margin-top: 0; font-size: inherit; line-height: inherit; }
   .hero__side .hero__show { margin-top: 0; }
 }
+/* the two title words are set to exactly the same width (see fitTitle in app.js) */
+.hero__line { display: block; width: max-content; }
+
 /* the last line shows what it says */
 .hero__show { display: block; margin-top: .55em; color: var(--white); font-weight: 300; }
 .w-rhythm { letter-spacing: .34em; margin-right: -.2em; }
