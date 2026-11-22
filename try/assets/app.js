@@ -13,6 +13,7 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const easeOut = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  const easeInOut = (t) => { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
   const smooth = (t) => t * t * (3 - 2 * t);
   const spUrl = (c) => `https://open.spotify.com/track/${c.sp}`;
   const ytUrl = (c) => `https://www.youtube.com/watch?v=${c.yt}`;
@@ -333,7 +334,8 @@
   }
 
   // Place everything for a given track offset (x) and record screen position (sx)
-  function drawFrame(x, sx, lightAt) {
+  // bend = 1: full curve; 0: the gallery has straightened into a flat line
+  function drawFrame(x, sx, lightAt, bend = 1) {
     const { step, size, gap, r, floor, hop, drum } = W;
     if (intro.scrollTop) intro.scrollTop = 0;
     trail.style.transform = `translate3d(${x}px,0,0)`;
@@ -341,11 +343,18 @@
     // turn the drum: the arc position at the centre of the screen is vw/2 - x
     const c = W.vw / 2 - x;
     for (let k = 0; k < N; k++) {
-      const th = (k * step + size / 2 - c) / drum;      // this cover's angle from the front, in radians
+      const arc = k * step + size / 2 - c;              // distance along the gallery from the front
       const it = wallItems[k];
+      if (bend < 0.003) {                               // flat: a straight wall
+        if (it.style.visibility) it.style.visibility = "";
+        it.style.transform = `translate3d(${arc.toFixed(1)}px,0,0)`;
+        continue;
+      }
+      const rad = drum / bend;                          // a bigger radius = a gentler curve
+      const th = arc / rad;                             // this cover's angle from the front, in radians
       if (Math.abs(th) > 1.45) { if (it.style.visibility !== "hidden") it.style.visibility = "hidden"; continue; }
       if (it.style.visibility) it.style.visibility = "";
-      it.style.transform = `translateZ(${-drum}px) rotateY(${th.toFixed(4)}rad) translateZ(${drum}px)`;
+      it.style.transform = `translateZ(${-rad.toFixed(1)}px) rotateY(${th.toFixed(5)}rad) translateZ(${rad.toFixed(1)}px)`;
     }
 
     const xr = sx - x;                                   // record centre in wall coordinates
@@ -387,6 +396,7 @@
     Sound.start();
     const t0 = performance.now();
     let exitT = 0;
+    let spunDown = false;
     const frame = (now) => {
       const t = now - t0;
       const p = Math.min(1, t / W.dur);
@@ -398,14 +408,16 @@
         rafId = requestAnimationFrame(frame);
         return;
       }
-      // the wall has stopped: the record rolls out from behind the last cover and spins down
-      if (!exitT) { exitT = now; Sound.spinDown(); }
-      const e = (now - exitT) / 1300;
-      const sx = W.vw / 2 + (W.exitTo - W.vw / 2) * easeOut(e);
-      drawFrame(x, sx, W.end * -1 + W.vw / 2);
+      // the gallery has stopped: the record eases out from under the last cover and slows to a stop,
+      // while the curve straightens so the covers can fly to the grid from exactly where they are
+      if (!exitT) exitT = now;
+      const e = (now - exitT) / 1700;
+      if (e > 0.35 && !spunDown) { spunDown = true; Sound.spinDown(); }
+      const sx = W.vw / 2 + (W.exitTo - W.vw / 2) * easeInOut(e);
+      drawFrame(x, sx, W.end * -1 + W.vw / 2, 1 - easeInOut(e));
       setIntroTimeline(N - 1, 1);
       if (e < 1) rafId = requestAnimationFrame(frame);
-      else introTimers.push(setTimeout(settle, 450));
+      else introTimers.push(setTimeout(settle, 250));
     };
     rafId = requestAnimationFrame(frame);
   }
