@@ -24,10 +24,8 @@
       <p class="intro__eyebrow">Project 01</p>
       <p class="intro__headline">Typographic&nbsp;Exploration</p>
       <div class="intro__gate">
-        <button class="intro__enter" id="enterIntro" type="button">
-          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0l9 5-9 5z"/></svg>Enter
-        </button>
-        <p class="intro__gate-note">Best with sound · about 20&nbsp;seconds</p>
+        <button class="intro__enter" id="enterIntro" type="button">Enter<span class="intro__enter-arrow" aria-hidden="true"></span></button>
+        <p class="intro__gate-note">Best with sound</p>
       </div>
     </div>
 
@@ -51,8 +49,14 @@
     </div>
 
     <div class="intro__controls">
-      <button class="intro__pill" id="soundToggle" type="button" aria-pressed="true">Sound on</button>
-      <button class="intro__pill" id="skipIntro" type="button">Skip intro</button>
+      <button class="intro__sound" id="soundToggle" type="button" aria-pressed="true" aria-label="Sound on">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path class="spk" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
+          <path class="wave1" d="M15.5 9.2a4 4 0 0 1 0 5.6"/>
+          <path class="wave2" d="M18.3 6.6a7.6 7.6 0 0 1 0 10.8"/>
+          <path class="mute" d="M16 9.5l5 5M21 9.5l-5 5"/>
+        </svg>
+      </button>
     </div>
   </div>
 

@@ -124,19 +124,6 @@
       if (ready()) master.gain.setTargetAtTime(v ? 0.9 : 0, now(), 0.05);
     }
 
-    function noise(sec, kind) {
-      const len = Math.floor(ctx.sampleRate * sec);
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      let last = 0;
-      for (let i = 0; i < len; i++) {
-        const w = Math.random() * 2 - 1;
-        if (kind === "brown") { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
-        else if (kind === "crackle") { d[i] = w * 0.015 + (Math.random() < 0.0009 ? (Math.random() * 2 - 1) * 0.9 : 0); }
-        else d[i] = w;
-      }
-      return buf;
-    }
 
     // one note: oscillator → envelope (→ filter) → master
     function tone(freq, { type = "sine", at = 0, dur = 0.4, vol = 0.1, attack = 0.01, filter = null, glideTo = null, vibrato = 0 } = {}) {
@@ -153,46 +140,34 @@
       node.connect(g); g.connect(master);
       o.start(t); o.stop(t + dur + 0.05);
     }
-    function burst({ at = 0, dur = 0.05, vol = 0.1, hp = 2000, bp = null } = {}) {
-      const t = now() + at;
-      const s = ctx.createBufferSource(); s.buffer = noise(dur + 0.02, "white");
-      const f = ctx.createBiquadFilter(); f.type = bp ? "bandpass" : "highpass"; f.frequency.value = bp || hp;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      s.connect(f); f.connect(g); g.connect(master);
-      s.start(t); s.stop(t + dur + 0.02);
-    }
 
-    // needle drop, vinyl crackle and the soft rumble of the record rolling
+    // a clean, quiet tone bed under the intro (a soft sine chord, no noise)
     function start() {
       if (!ready()) return;
       stop(0.01);
-      burst({ dur: 0.03, vol: 0.25, hp: 2500 });
-      tone(90, { glideTo: 40, dur: 0.3, vol: 0.4 });
-      const mk = (kind, sec, filterType, freq, vol) => {
-        const s = ctx.createBufferSource(); s.buffer = noise(sec, kind); s.loop = true;
-        const f = ctx.createBiquadFilter(); f.type = filterType; f.frequency.value = freq;
-        const g = ctx.createGain(); g.gain.value = 0.0001;
-        g.gain.setTargetAtTime(vol, now() + 0.15, 0.2);
-        s.connect(f); f.connect(g); g.connect(master); s.start();
-        loops.push({ s, g });
-        return g;
-      };
-      mk("crackle", 3, "highpass", 900, 0.5);
-      humGain = mk("brown", 3, "lowpass", 220, 0.0001);
+      const bed = ctx.createGain(); bed.gain.value = 0.0001;
+      bed.connect(master);
+      [110, 164.81, 220].forEach((f, k) => {
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.value = [0.5, 0.3, 0.15][k];
+        o.connect(g); g.connect(bed); o.start();
+        loops.push({ s: o, g });
+      });
+      loops.push({ s: null, g: bed });
+      humGain = bed;
     }
-    function speed(v) { if (ready() && humGain) humGain.gain.setTargetAtTime(0.32 * clamp(v, 0, 1.2), now(), 0.08); }
+    // the bed swells gently while the record moves and fades when it slows
+    function speed(v) { if (ready() && humGain) humGain.gain.setTargetAtTime(0.05 + 0.07 * clamp(v, 0, 1.2), now(), 0.15); }
     function stop(fade = 0.6) {
       if (!ctx) return;
-      loops.forEach(({ s, g }) => { g.gain.setTargetAtTime(0.0001, now(), fade / 3); try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } });
+      loops.forEach(({ s, g }) => { g.gain.setTargetAtTime(0.0001, now(), fade / 3); if (s) { try { s.stop(now() + fade + 0.1); } catch (e) { /* already stopped */ } } });
       loops = []; humGain = null;
     }
 
     // the jump through a gap: a soft kick, in time with the spike in the line
     function hop() {
       if (!ready()) return;
-      tone(170, { glideTo: 50, dur: 0.16, vol: 0.45 });
-      burst({ dur: 0.02, vol: 0.06, hp: 3500 });
+      tone(160, { glideTo: 55, dur: 0.18, vol: 0.32 });
     }
 
     // a short phrase in each song's character as the record reaches its cover
@@ -207,7 +182,7 @@
         groove:  () => { tone(r / 2, { dur: 0.4, vol: 0.2 }); tone(r * 2, { type: "triangle", dur: 0.2, vol: 0.12 }); tone(r * 2.5, { type: "triangle", at: 0.18, dur: 0.2, vol: 0.12 }); },
         heavy:   () => { tone(r / 2, { type: "sawtooth", attack: 0.05, dur: 1.2, vol: 0.12, filter: 420 }); tone(r / 2 * 1.01, { type: "sawtooth", attack: 0.05, dur: 1.2, vol: 0.1, filter: 420 }); },
         pulse:   () => [0, 0.1, 0.2].forEach((at) => tone(r * 2, { type: "square", at, dur: 0.07, vol: 0.06, filter: 2200 })),
-        march:   () => { burst({ bp: 1800, dur: 0.09, vol: 0.18 }); burst({ bp: 1800, at: 0.15, dur: 0.09, vol: 0.14 }); tone(r / 2, { dur: 0.35, vol: 0.16 }); },
+        march:   () => { tone(r, { type: "square", dur: 0.08, vol: 0.05, filter: 1500 }); tone(r, { type: "square", at: 0.15, dur: 0.08, vol: 0.05, filter: 1500 }); tone(r / 2, { dur: 0.35, vol: 0.16 }); },
         sparkle: () => [[4, 0], [6, 0.07], [8, 0.14]].forEach(([m, at]) => tone(r * m / 2, { at, dur: 0.6, vol: 0.06 })),
         jagged:  () => tone(r, { type: "sawtooth", dur: 0.35, vol: 0.12, filter: 1600 }),
         frantic: () => { for (let k = 0; k < 6; k++) tone(SCALE[(i + k * 3) % 5] * 2, { type: "square", at: k * 0.045, dur: 0.04, vol: 0.05, filter: 3000 }); },
@@ -219,8 +194,8 @@
     // the record slows down: the classic turntable "power-off" pitch drop
     function spinDown() {
       if (!ready()) return;
-      tone(110, { type: "sawtooth", attack: 0.03, dur: 1.4, vol: 0.12, filter: 900, glideTo: 24 });
-      tone(165, { type: "triangle", attack: 0.03, dur: 1.4, vol: 0.08, glideTo: 36 });
+      tone(220, { attack: 0.03, dur: 1.4, vol: 0.12, glideTo: 40 });
+      tone(330, { type: "triangle", attack: 0.03, dur: 1.4, vol: 0.06, glideTo: 60 });
       stop(1.2);
     }
     // a small "plop" as it lands in the teal dot
@@ -444,7 +419,7 @@
     at(150, () => intro.classList.add("t1"));
     at(1100, () => intro.classList.add("t2"));
     if (clicked) at(3500, startWall);
-    else at(2300, () => { intro.classList.add("t-gate"); $("#enterIntro").focus({ preventScroll: true }); });
+    else at(2300, () => intro.classList.add("t-gate"));   // Enter or Space on the keyboard also starts it
   }
 
   function startWall() {
@@ -530,14 +505,10 @@
     setTimeout(() => grid.classList.remove("is-settling"), canFly ? 900 : 300);
   }
 
-  $("#skipIntro").addEventListener("click", () => {
-    if (!wallStarted) { introRunning = true; }
-    settle();
-  });
   $("#enterIntro").addEventListener("click", () => { Sound.unlock(); startWall(); });
   const soundBtn = $("#soundToggle");
   const syncSoundBtn = () => {
-    soundBtn.textContent = Sound.isOn() ? "Sound on" : "Sound off";
+    soundBtn.setAttribute("aria-label", Sound.isOn() ? "Sound on" : "Sound off");
     soundBtn.setAttribute("aria-pressed", Sound.isOn() ? "true" : "false");
   };
   soundBtn.addEventListener("click", () => { Sound.unlock(); Sound.setOn(!Sound.isOn()); syncSoundBtn(); });
