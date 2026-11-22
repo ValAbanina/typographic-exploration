@@ -237,7 +237,11 @@ body.no-scroll { overflow: hidden; }
   border-top: 1px solid var(--line);
   color: var(--grey); font-size: 14px; line-height: 22px;
 }
-.site-footer__mark { height: 28px; width: auto; margin-bottom: 20px; opacity: .55; }  /* one-colour logo, quieter than the header one */
+/* footer: the vertical (three-line) DGMD logo, with the credits right beside it */
+.site-footer { display: flex; align-items: center; gap: clamp(20px, 3vw, 36px); }
+.site-footer__mark { flex: none; height: 72px; width: auto; }
+.site-footer__text { min-width: 0; }
+@media (max-width: 520px) { .site-footer__mark { height: 60px; } }
 .site-footer__fine { margin-top: 6px; font-size: 12px; line-height: 18px; color: #7d7f82; max-width: 46em; }
 
 /* =========================================================
