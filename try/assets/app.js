@@ -847,6 +847,27 @@
   }
   fitTitle();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
+
+  /* Title screen: the DGMD logo is never wider than TYPOGRAPHIC EXPLORATION.
+     Where the title wraps to two lines (phones), the logo matches its width exactly. */
+  function fitIntroMark() {
+    const mark = $(".intro__mark"), head = $(".intro__headline");
+    if (!mark || !head) return;
+    // measure the title as it looks once settled (its letter-spacing animates in)
+    const probe = document.createElement("span");
+    const cs = getComputedStyle(head);
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font:${cs.font};text-transform:uppercase;letter-spacing:-0.01em`;
+    document.body.appendChild(probe);
+    const width = (t) => { probe.textContent = t; return probe.getBoundingClientRect().width; };
+    const room = head.parentElement.clientWidth - 48;          // the title area minus its padding
+    const full = width("Typographic Exploration");
+    const titleWidth = full <= room ? full : Math.max(width("Typographic"), width("Exploration"));
+    probe.remove();
+    mark.style.width = `${Math.round(Math.min(420, titleWidth))}px`;
+  }
+  fitIntroMark();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitIntroMark);
+  window.addEventListener("resize", fitIntroMark);
   let fitTimer = 0;
   window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitTitle, 80); });
 
