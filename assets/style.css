@@ -3,6 +3,8 @@
    Colour + type from the DGMD foundations (GROW Workspace)
    ========================================================= */
 
+@property --tint { syntax: "<color>"; inherits: true; initial-value: #006767; }
+
 :root {
   /* DGMD brand */
   --teal: #00abab;          /* brand/primary — 7.4:1 on near-black */
@@ -237,12 +239,83 @@ body.intro-on .intro { display: block; }
   opacity: 0;
 }
 .intro.t3 .wall { opacity: 1; transition: opacity .8s ease .2s; }
-.wall__track { display: flex; align-items: flex-start; will-change: transform; }
+.wall__track { position: relative; z-index: 3; display: flex; align-items: flex-start; will-change: transform; }
 .wall__item { flex: none; }
 .wall__art {
+  position: relative;
   box-shadow: 0 1px 0 rgba(255,255,255,.05), 0 30px 60px -24px rgba(0,0,0,.95);
   background: var(--surface);
 }
+/* gallery lighting: the room is dim, each cover lights up as the record reaches it */
+.wall__shade { position: absolute; inset: 0; background: #050606; opacity: .68; pointer-events: none; }
+.intro.is-leaving .wall__shade { opacity: 0 !important; transition: opacity .5s ease; }
+
+.spotlight {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 0;
+  pointer-events: none; opacity: 0;
+  will-change: transform;
+}
+.spotlight::before {
+  content: ""; position: absolute; top: -10vh; left: -45vw; width: 90vw; height: 120vh;
+  background: radial-gradient(ellipse 34% 55% at 50% 46%, rgba(255,255,255,.075), rgba(255,255,255,.025) 55%, transparent 75%);
+}
+.intro.t3 .spotlight { opacity: 1; transition: opacity 1.2s ease .3s; }
+.intro.is-leaving .spotlight { opacity: 0; transition: opacity .5s ease; }
+
+/* the sound line the record leaves behind */
+.trail {
+  position: absolute; left: 0; top: 0; width: 1px; height: 1px; z-index: 1;
+  overflow: visible; pointer-events: none; will-change: transform;
+  transition: opacity .4s ease;
+}
+.trail path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.trail__line { stroke: var(--teal); stroke-width: 2; }
+.trail__glow { stroke: rgba(0,171,171,.28); stroke-width: 7; filter: blur(3px); }
+
+/* the hero: a rolling record (moves behind the covers, never over them) */
+.roller {
+  position: absolute; left: 0; top: 0; z-index: 2;
+  opacity: 0; will-change: transform;
+  pointer-events: none;
+  transition: --tint .6s ease, opacity .3s ease;
+}
+.roller.is-on { opacity: 1; }
+.roller.is-gone { opacity: 0; }
+.roller__disc {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 30%, rgba(255,255,255,.05) 30.4% 31%, transparent 31.4%),
+    repeating-radial-gradient(circle, #0b0b0b 0 1.1px, #181818 1.5px 2.5px),
+    #0d0d0d;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 0 38px -6px color-mix(in srgb, var(--tint) 70%, transparent),
+    0 14px 30px -12px rgba(0,0,0,.9);
+}
+.roller__disc::before { /* sheen picks up the cover's colour */
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 30deg,
+    transparent 0 8%, color-mix(in srgb, var(--tint) 55%, rgba(255,255,255,.35)) 13%, transparent 21% 55%,
+    color-mix(in srgb, var(--tint) 45%, rgba(255,255,255,.25)) 61%, transparent 69%);
+  opacity: .55; mix-blend-mode: screen;
+}
+.roller__label {
+  position: absolute; left: 50%; top: 50%; width: 46%; aspect-ratio: 1; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background-size: cover; background-position: center; background-color: var(--surface);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.55);
+}
+.roller__label::after { /* spindle hole */
+  content: ""; position: absolute; left: 50%; top: 50%; width: 9%; aspect-ratio: 1; border-radius: 50%;
+  transform: translate(-50%, -50%); background: var(--bg);
+}
+.roller__disc.is-flip .roller__label { animation: label-in .45s var(--ease-out); }
+.roller__disc.is-blank .roller__label {         /* a blank record: plain DGMD teal label */
+  background-color: var(--teal);
+  background-image: radial-gradient(circle, transparent 0 58%, rgba(0,0,0,.18) 59% 61%, transparent 62%);
+}
+@keyframes label-in { from { opacity: .2; transform: translate(-50%, -50%) scale(.6); } }
+.roller.is-landing .roller__disc { box-shadow: 0 0 0 1px rgba(0,171,171,.6) inset, 0 0 30px rgba(0,171,171,.5); }
 .wall__art img { width: 100%; height: 100%; object-fit: cover; }
 .wall__label { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; margin-top: 22px; }
 .wall__num { font-family: var(--font-head); font-weight: 800; font-size: clamp(34px, 4.4vh, 52px); line-height: .9; color: var(--teal); }
@@ -401,12 +474,19 @@ body.intro-on .intro { display: block; }
 
 .player { margin-top: 28px; }
 .player__frame {
-  position: relative; width: 100%; aspect-ratio: 16 / 9;
-  background: #000; border: 1px solid var(--line);
+  position: relative; width: 100%; height: 152px;
+  border-radius: 12px; overflow: hidden;
+  background: #000;
 }
 .player__frame iframe, .player__frame > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .player__fallback { margin-top: 12px; font-size: 14px; color: var(--grey); }
-.player__fallback a { color: var(--teal); }
+.player__fallback a, .player__more a { color: var(--teal); text-decoration: none; }
+.player__fallback a:hover, .player__more a:hover { text-decoration: underline; }
+.player__more {
+  margin-top: 12px;
+  font-family: var(--font-body); font-weight: 600; font-size: 12px; line-height: 18px;
+  letter-spacing: 1.2px; text-transform: uppercase;
+}
 
 .listen__nav { display: flex; gap: 12px; margin-top: 22px; }
 .nav-btn {

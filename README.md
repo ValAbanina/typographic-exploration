@@ -1,6 +1,6 @@
 # Typographic Exploration — Album Covers
 
-A showcase of student album covers from **Project 01: Typographic Exploration** (Visual Storytelling I, Digital Media & Design, Langara College). Each cover is shown exactly as submitted; click one to hear the song the student chose (played from YouTube).
+A showcase of student album covers from **Project 01: Typographic Exploration** (Visual Storytelling I, Digital Media & Design, Langara College). Each cover is shown exactly as submitted; click one to hear the song the student chose (a Spotify player, with a link to the full song on YouTube).
 
 Plain HTML, CSS and JavaScript. No build step and nothing to install.
 
@@ -10,7 +10,7 @@ Plain HTML, CSS and JavaScript. No build step and nothing to install.
 |---|---|
 | `index.html` | The page |
 | `assets/style.css` | All styling. DGMD colours and type are set at the top as variables |
-| `assets/app.js` | Intro animation, grid, listening view, YouTube player |
+| `assets/app.js` | Intro animation (the rolling record), grid, listening view, Spotify player |
 | `assets/data.js` | **The list of covers.** Edit this to change order, names or songs |
 | `assets/dgmd-on-dark.svg` | DGMD wordmark (on-dark version, from the GROW Workspace Figma file) |
 | `covers/` | Each cover as `<slug>-1600.webp` (large) and `<slug>-640.webp` (grid) |
@@ -26,7 +26,7 @@ To update it later, edit or re-upload the changed files in the repo. Pages repub
 
 ## Preview on your own computer
 
-The songs need the page served over http (YouTube won't play inside a page opened straight from your disk). In Terminal:
+The songs need the page served over http (the Spotify player won't load inside a page opened straight from your disk). In Terminal:
 
 ```
 cd path/to/this/folder
@@ -39,12 +39,14 @@ Then open http://localhost:8000.
 
 - **Change the order:** move entries up or down in `assets/data.js`. Numbers update by themselves.
 - **Fix a name or song:** edit that entry in `assets/data.js`.
-- **Swap a song:** replace `yt` with the 11-character ID from the YouTube link (the part after `watch?v=` or `youtu.be/`).
+- **Swap a song:** in Spotify, use Share → Copy Song Link and put the 22 characters after `/track/` in `sp`. Put the YouTube video ID (the 11 characters after `watch?v=`) in `yt` for the "Full song on YouTube" link.
+- **Change a song's sound line in the intro:** set `wave` to calm, swell, bouncy, groove, heavy, pulse, march, sparkle, jagged, frantic or horror.
 - **Add a cover:** export the artwork as two square WebP files, `covers/<slug>-1600.webp` and `covers/<slug>-640.webp`, then add an entry to `data.js` with the same `slug`.
 
 ## Notes
 
 - The intro plays once per browser session. "Replay intro" in the header runs it again. Visitors who have reduced motion turned on in their system settings skip it.
 - Each cover has its own link: `…/#espresso` opens that cover's listening view directly.
-- If YouTube is blocked on a network, the listening view shows a "Listen on YouTube" link instead.
+- Visitors who aren't signed in to Spotify hear a 30-second preview, then the next cover starts. Signed-in Premium listeners usually hear the full song.
+- If Spotify is blocked on a network, the listening view shows an "Open in Spotify" link instead.
 - Covers © the student designers. Music rights belong to the artists and their labels.

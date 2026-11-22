@@ -1,5 +1,6 @@
 /* Typographic Exploration — showcase
-   Intro (gallery wall) → settles into grid → click a cover to listen (YouTube). */
+   Intro: a record rolls along the gallery wall, playing each cover,
+   then everything settles into the grid. Click a cover to listen (Spotify). */
 (() => {
   "use strict";
 
@@ -10,6 +11,11 @@
   const img = (c, size) => `covers/${c.slug}-${size}.webp`;
   const srcset = (c) => `${img(c, 640)} 640w, ${img(c, 1600)} 1600w`;
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const easeOut = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const spUrl = (c) => `https://open.spotify.com/track/${c.sp}`;
+  const ytUrl = (c) => `https://www.youtube.com/watch?v=${c.yt}`;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const store = {
@@ -59,22 +65,51 @@
         if (interactive) t.setAttribute("aria-selected", i === current ? "true" : "false");
       });
       const p = progress == null ? (N > 1 ? current / (N - 1) : 0) : progress;
-      fill.style.width = `${Math.max(0, Math.min(1, p)) * 100}%`;
+      fill.style.width = `${clamp(p, 0, 1) * 100}%`;
     };
   }
 
   /* ---------------------------------------------------------
-     INTRO — gallery wall that settles into the grid
+     Sound-line shapes: one per song's character (data.js "wave")
+     Each returns roughly -1…1 for u = 0…1 across one cover.
+     --------------------------------------------------------- */
+  const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const saw = (v) => 2 * (v - Math.floor(v + 0.5));
+  const S = (f, u) => Math.sin(2 * Math.PI * f * u);
+  const WAVES = {
+    calm:    (u) => 0.55 * S(2, u),
+    swell:   (u) => S(3, u) * (0.35 + 0.65 * Math.sin(Math.PI * u)),
+    bouncy:  (u) => 1.1 * Math.abs(S(5, u)) - 0.2,
+    groove:  (u) => 0.65 * S(4, u) + 0.3 * S(12, u),
+    heavy:   (u) => 0.95 * S(1.5, u) + 0.18 * S(11, u),
+    pulse:   (u) => 0.75 * Math.tanh(4 * S(6, u)),
+    march:   (u) => 0.55 * Math.tanh(7 * S(4, u)) + 0.25 * S(16, u),
+    sparkle: (u) => 0.45 * S(7, u) + 0.35 * S(19, u),
+    jagged:  (u) => 0.85 * saw(9 * u) * (0.6 + 0.4 * hash(Math.floor(9 * u))),
+    frantic: (u) => saw(17 * u) * (0.3 + 0.8 * hash(Math.floor(17 * u) + 7)),
+    horror:  (u) => { const k = Math.floor(11 * u); const spike = hash(k + 3) > 0.72 ? 1.4 : 0.55; return saw(11 * u) * spike * (k % 2 ? 1 : -1); }
+  };
+
+  /* ---------------------------------------------------------
+     INTRO — a record rolls along the gallery wall
      --------------------------------------------------------- */
   const intro = $("#intro");
   const wall = $("#wall");
   const track = $("#wallTrack");
   const introCount = $("#introCount");
   const setIntroTimeline = buildTimeline($("#introTimeline"), false);
+  const roller = $("#roller");
+  const rollerDisc = $("#rollerDisc");
+  const rollerLabel = $("#rollerLabel");
+  const trail = $("#trail");
+  const trailLine = $("#trailLine");
+  const trailGlow = $("#trailGlow");
+  const trailReveal = $("#trailReveal");
+  const spotlight = $("#spotlight");
 
   track.innerHTML = COVERS.map((c, i) => `
     <div class="wall__item">
-      <div class="wall__art"><img src="${img(c, 1600)}" alt="" decoding="async"></div>
+      <div class="wall__art"><img src="${img(c, 1600)}" alt="" decoding="async"><span class="wall__shade"></span></div>
       <div class="wall__label">
         <span class="wall__num" style="grid-row: 1 / span 2">${pad(i + 1)}</span>
         <span class="wall__title">${esc(c.song)}</span>
@@ -83,48 +118,155 @@
     </div>`).join("");
   const wallItems = [...track.querySelectorAll(".wall__item")];
   const wallArts = wallItems.map((w) => $(".wall__art", w));
+  const wallLabels = wallItems.map((w) => $(".wall__label", w));
+  const shades = wallItems.map((w) => $(".wall__shade", w));
+  const shadeVals = new Array(N).fill(-1);
+
+  // preload the small images used on the record label
+  COVERS.forEach((c) => { const im = new Image(); im.src = img(c, 640); });
 
   let introTimers = [];
   let rafId = 0;
   let introRunning = false;
   let wallStarted = false;
-  let W = { size: 0, gap: 0, start: 0, end: 0, dur: 0 };
+  let W = {};
+  let R = { sx: 0, y: 0, cur: null };
 
   function layoutWall() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    const size = Math.round(Math.min(vh * 0.5, vw * 0.66, 620));
+    const size = Math.round(Math.min(vh * 0.46, vw * 0.66, 600));
     const gap = Math.round(Math.max(size * 0.3, 44));
+    const step = size + gap;
+    const D = Math.round(size * 0.42);           // record diameter
+    const r = D / 2;
+    const floor = size + Math.round(D * 0.8);    // the line the record rolls on (its top tucks behind the covers)
+    const amp = Math.max(6, Math.round(D * 0.14));
     wallItems.forEach((it) => { it.style.width = `${size}px`; it.style.marginRight = `${gap}px`; });
     wallArts.forEach((a) => { a.style.width = a.style.height = `${size}px`; });
-    const step = size + gap;
+    wallLabels.forEach((l) => { l.style.marginTop = `${floor - size + amp + 18}px`; });
+    roller.style.width = roller.style.height = `${D}px`;
+
     W = {
-      size, gap, step,
+      vw, size, gap, step, D, r, floor, amp,
       start: vw + 10,                                   // first cover just off the right edge
       end: vw / 2 - ((N - 1) * step + size / 2),        // last cover centred
+      hop: D * 0.85,
+      rollIn: 1600,
+      exitTo: Math.min(vw / 2 + size / 2 + gap + r, vw - r - 12),
     };
     W.dur = ((W.start - W.end) / step) * 1000;          // ~1 s per cover
+    W.xr0 = -D - W.start;                               // record start, in wall coordinates
+    buildTrail();
+  }
+
+  function buildTrail() {
+    const { step, size, gap, floor, amp, xr0, vw } = W;
+    const from = Math.floor(xr0), to = Math.ceil(N * step + vw);
+    let d = `M${from} ${floor}`;
+    for (let x = from; x <= to; x += 3) {
+      const s = x + gap / 2;                            // each song's stretch runs gap-centre to gap-centre
+      const k = Math.floor(s / step);
+      let y = floor;
+      if (k >= 0 && k < N) {
+        const u = (s - k * step) / step;
+        const env = Math.pow(Math.sin(Math.PI * u), 0.7);
+        const f = WAVES[COVERS[k].wave] || WAVES.calm;
+        y = floor - amp * env * f(u);
+      }
+      d += `L${x} ${y.toFixed(1)}`;
+    }
+    trailLine.setAttribute("d", d);
+    trailGlow.setAttribute("d", d);
   }
 
   // linear glide with soft start and soft landing
   const glide = (p) => p - (Math.sin(2 * Math.PI * p) / (2 * Math.PI)) * 0.55;
 
+  // i = -1 is the blank teal record (before the first cover and as it lands)
+  function setRecordCover(i) {
+    if (i === R.cur) return;
+    R.cur = i;
+    rollerDisc.classList.toggle("is-blank", i < 0);
+    if (i < 0) {
+      rollerLabel.style.backgroundImage = "none";
+      roller.style.setProperty("--tint", "#00abab");
+      return;
+    }
+    const c = COVERS[i];
+    rollerLabel.style.backgroundImage = `url("${img(c, 640)}")`;
+    roller.style.setProperty("--tint", c.tint || "#006767");
+    rollerDisc.classList.remove("is-flip"); void rollerDisc.offsetWidth; rollerDisc.classList.add("is-flip");
+    introCount.textContent = `${pad(i + 1)} / ${pad(N)}`;
+  }
+
+  // Place everything for a given track offset (x) and record screen position (sx)
+  function drawFrame(x, sx, lightAt) {
+    const { step, size, gap, r, floor, hop } = W;
+    track.style.transform = `translate3d(${x}px,0,0)`;
+    trail.style.transform = `translate3d(${x}px,0,0)`;
+
+    const xr = sx - x;                                   // record centre in wall coordinates
+    const g = Math.round((xr - (size + gap / 2)) / step);   // nearest gap between two covers
+    const dist = Math.abs(xr - (g * step + size + gap / 2));
+    const lift = g >= 0 && g <= N - 2 ? hop * Math.exp(-Math.pow(dist / (0.16 * step), 2)) : 0; // hop up through the gap
+    const y = floor - 2 * r - lift;
+    const deg = ((xr - W.xr0) / r) * (180 / Math.PI);
+    roller.style.transform = `translate3d(${sx - r}px,${y}px,0)`;
+    rollerDisc.style.transform = `rotate(${deg % 360}deg)`;
+    R.sx = sx; R.y = y;
+
+    trailReveal.setAttribute("width", Math.max(0, xr - r * 0.25 + 99999));
+    spotlight.style.transform = `translate3d(${sx}px,0,0)`;
+
+    const lx = lightAt == null ? xr : lightAt;
+    const cur = clamp(Math.round((lx - size / 2) / step), 0, N - 1);
+    // stays blank until it reaches the first cover's stretch of the sound line
+    setRecordCover(lx < -gap / 2 ? -1 : cur);
+    for (let k = 0; k < N; k++) {                        // gallery lighting: dim room, lit where the record is
+      const d = Math.abs(lx - (k * step + size / 2));
+      const l = smooth(clamp(1 - d / (step * 0.8), 0, 1));
+      const o = Math.round((0.68 * (1 - l)) * 100) / 100;
+      if (o !== shadeVals[k]) { shades[k].style.opacity = o; shadeVals[k] = o; }
+    }
+    return cur;
+  }
+
   function runWall() {
     wallStarted = true;
     layoutWall();
+    roller.classList.add("is-on");
     const t0 = performance.now();
-    let last = -1;
+    let exitT = 0;
     const frame = (now) => {
-      const p = Math.min(1, (now - t0) / W.dur);
+      const t = now - t0;
+      const p = Math.min(1, t / W.dur);
       const x = W.start + (W.end - W.start) * glide(p);
-      track.style.transform = `translate3d(${x}px,0,0)`;
-      const centre = window.innerWidth / 2 - x - W.size / 2;
-      const cur = Math.max(0, Math.min(N - 1, Math.round(centre / W.step)));
-      if (cur !== last) { introCount.textContent = `${pad(cur + 1)} / ${pad(N)}`; last = cur; }
-      setIntroTimeline(cur, glide(p));
-      if (p < 1) rafId = requestAnimationFrame(frame);
-      else introTimers.push(setTimeout(settle, 700));
+      if (p < 1) {
+        const sx = -W.D + (W.vw / 2 + W.D) * easeOut(t / W.rollIn);
+        const cur = drawFrame(x, sx);
+        setIntroTimeline(cur, glide(p));
+        rafId = requestAnimationFrame(frame);
+        return;
+      }
+      // the wall has stopped: the record rolls out from behind the last cover and spins down
+      if (!exitT) exitT = now;
+      const e = (now - exitT) / 1300;
+      const sx = W.vw / 2 + (W.exitTo - W.vw / 2) * easeOut(e);
+      drawFrame(x, sx, W.end * -1 + W.vw / 2);
+      setIntroTimeline(N - 1, 1);
+      if (e < 1) rafId = requestAnimationFrame(frame);
+      else introTimers.push(setTimeout(settle, 450));
     };
     rafId = requestAnimationFrame(frame);
+  }
+
+  function resetRoller() {
+    roller.classList.remove("is-on", "is-landing", "is-gone");
+    roller.style.transition = "";
+    roller.style.transform = "";
+    trailReveal.setAttribute("width", 0);
+    shades.forEach((s, k) => { s.style.opacity = ""; shadeVals[k] = -1; });
+    R.cur = null;
   }
 
   function playIntro() {
@@ -133,8 +275,8 @@
     window.scrollTo(0, 0);
     document.body.classList.add("intro-on", "no-scroll");
     intro.classList.remove("t1", "t2", "t3", "is-leaving");
-    intro.style.removeProperty("visibility");
     wall.style.visibility = "";
+    resetRoller();
     track.style.transform = `translate3d(${window.innerWidth + 10}px,0,0)`;
     grid.classList.add("is-settling");
     const at = (ms, fn) => introTimers.push(setTimeout(fn, ms));
@@ -147,6 +289,22 @@
     introTimers.forEach(clearTimeout);
     introTimers = [];
     cancelAnimationFrame(rafId);
+  }
+
+  // The record drops into the pulsing dot next to "Click a cover to listen"
+  function landRecord() {
+    const dot = $(".hint-dot");
+    if (!dot || !roller.classList.contains("is-on")) { roller.classList.add("is-gone"); return; }
+    const to = dot.getBoundingClientRect();
+    const from = roller.getBoundingClientRect();
+    const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+    const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+    const s = Math.max(to.width, 8) / from.width;
+    setRecordCover(-1);                                  // back to plain teal before it lands in the teal dot
+    roller.classList.add("is-landing");
+    roller.style.transition = "transform 1.15s cubic-bezier(.65,0,.35,1), opacity .35s ease 1s";
+    roller.style.transform = `translate3d(${R.sx - W.r + dx}px,${R.y + dy}px,0) scale(${s})`;
+    setTimeout(() => roller.classList.add("is-gone"), 30);
   }
 
   // FLIP: every grid cover starts where its twin sits on the wall, then flies home.
@@ -171,14 +329,18 @@
         art.style.zIndex = "101";
         art.style.position = "relative";
       });
-      wall.style.visibility = "hidden";
+      track.style.visibility = "hidden";
+      trail.style.opacity = "0";
       void grid.offsetWidth; // commit start positions
       requestAnimationFrame(() => {
         cardArts.forEach((art, i) => {
           art.style.transition = `transform 1.25s cubic-bezier(.16,1,.3,1) ${i * 45}ms`;
           art.style.transform = "";
         });
+        landRecord();
       });
+    } else {
+      wall.style.visibility = "hidden";
     }
 
     intro.classList.add("is-leaving");
@@ -187,19 +349,18 @@
       document.body.classList.remove("intro-on", "no-scroll");
       intro.classList.remove("is-leaving");
       grid.classList.remove("is-flying", "is-settling");
+      track.style.visibility = "";
+      trail.style.opacity = "";
       cardArts.forEach((art) => {
         art.style.transition = art.style.transformOrigin = art.style.zIndex = art.style.position = "";
       });
-    }, total);
+    }, Math.max(total, 1250));
     // labels fade in as the covers land
     setTimeout(() => grid.classList.remove("is-settling"), canFly ? 900 : 300);
   }
 
   $("#skipIntro").addEventListener("click", () => {
-    if (!wallStarted) { // still on the title card: just fade away
-      introRunning = true;
-      wallStarted = false;
-    }
+    if (!wallStarted) { introRunning = true; }
     settle();
   });
   document.addEventListener("keydown", (e) => {
@@ -209,70 +370,93 @@
   window.addEventListener("resize", () => { if (introRunning && wallStarted) layoutWall(); });
 
   /* ---------------------------------------------------------
-     LISTENING VIEW + YouTube
+     LISTENING VIEW + Spotify
      --------------------------------------------------------- */
   const listen = $("#listen");
   const listenCover = $("#listenCover");
   const vinyl = $("#vinyl");
   const vinylLabel = $("#vinylLabel");
-  const fallback = $("#ytFallback");
+  const fallback = $("#spFallback");
+  const spLink = $("#spLink");
   const ytLink = $("#ytLink");
   const setListenTimeline = buildTimeline($("#listenTimeline"), true);
   let current = -1;
-  let player = null;
-  let playerReady = false;
-  let pendingId = null;
   let lastFocus = null;
 
+  // Spotify iFrame API: one controller, reused for every song
+  let ctl = null;            // EmbedController once created
+  let booting = false;
+  let wantPlay = false;      // play as soon as the loaded song is ready
+  let pendingUri = null;
   let apiPromise = null;
-  // If YouTube can't load (blocked network, ad blocker, preview host), offer the link instead.
-  let ytWatchdog = 0;
-  function armWatchdog() {
-    clearTimeout(ytWatchdog);
-    ytWatchdog = setTimeout(() => { if (!playerReady) fallback.hidden = false; }, 5000);
+  let pb = { playing: false, pos: 0, dur: 0, ignoreUntil: 0, endedFor: -1 };
+
+  let watchdog = 0;
+  function armWatchdog() {     // if Spotify can't load (blocked network, preview host), offer the links
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => { if (!ctl) fallback.hidden = false; }, 7000);
   }
-  function loadYT() {
-    armWatchdog();
+  function loadSpotify() {
     if (apiPromise) return apiPromise;
     apiPromise = new Promise((resolve) => {
-      if (window.YT && window.YT.Player) return resolve(window.YT);
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => { prev && prev(); resolve(window.YT); };
+      const prev = window.onSpotifyIframeApiReady;
+      window.onSpotifyIframeApiReady = (api) => { prev && prev(api); resolve(api); };
       const s = document.createElement("script");
-      s.src = "https://www.youtube.com/iframe_api";
+      s.src = "https://open.spotify.com/embed/iframe-api/v1";
       s.async = true;
+      s.onerror = () => { fallback.hidden = false; };
       document.head.appendChild(s);
     });
     return apiPromise;
   }
 
-  function playVideo(id) {
-    ytLink.href = `https://www.youtube.com/watch?v=${id}`;
-    if (player && playerReady) { fallback.hidden = true; player.loadVideoById(id); return; }
-    pendingId = id;
-    if (player) return; // still booting; onReady will pick up pendingId
-    loadYT().then((YT) => {
-      player = new YT.Player("ytPlayer", {
-        host: "https://www.youtube-nocookie.com",
-        videoId: pendingId,
-        playerVars: { autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
-        events: {
-          onReady: (e) => {
-            playerReady = true;
-            if (pendingId && e.target.getVideoData().video_id !== pendingId) e.target.loadVideoById(pendingId);
-            else e.target.playVideo();
-            pendingId = null;
-          },
-          onStateChange: (e) => {
-            const S = window.YT.PlayerState;
-            vinyl.classList.toggle("is-spinning", e.data === S.PLAYING);
-            if (e.data === S.PLAYING) fallback.hidden = true;
-            if (e.data === S.ENDED && !listen.hidden) go(current + 1, true);
-          },
-          onError: () => { fallback.hidden = false; vinyl.classList.remove("is-spinning"); }
-        }
+  function onPlayback(e) {
+    const d = (e && e.data) || {};
+    const playing = !d.isPaused && !d.isBuffering;
+    vinyl.classList.toggle("is-spinning", playing);
+    if (playing) fallback.hidden = true;
+    if (performance.now() < pb.ignoreUntil) { pb.pos = d.position || 0; return; }
+    const dur = d.duration || 0, pos = d.position || 0;
+    // the preview (or song) finished: move on to the next cover
+    const atEnd = dur > 0 && (pos >= dur - 400 || (d.isPaused && pb.playing && pb.pos >= dur - 1600));
+    if (atEnd && pb.endedFor !== current && !listen.hidden) {
+      pb.endedFor = current;
+      go(current + 1, true);
+    }
+    pb.playing = !d.isPaused; pb.pos = pos; pb.dur = dur;
+  }
+
+  function loadSong(i, autoplay) {
+    const c = COVERS[i];
+    const uri = `spotify:track:${c.sp}`;
+    wantPlay = autoplay;
+    pb.ignoreUntil = performance.now() + 1500;
+    pb.playing = false; pb.pos = 0; pb.endedFor = -1;
+    armWatchdog();
+    if (ctl) {
+      ctl.loadUri(uri);
+      if (autoplay) setTimeout(() => { if (wantPlay && ctl) ctl.play(); }, 900); // in case "ready" doesn't fire again
+      return;
+    }
+    pendingUri = uri;
+    if (booting) return;
+    booting = true;
+    loadSpotify().then((api) => {
+      api.createController($("#spPlayer"), { uri: pendingUri, width: "100%", height: 152 }, (controller) => {
+        ctl = controller;
+        fallback.hidden = true;
+        controller.addListener("ready", () => {
+          if (wantPlay) { wantPlay = false; controller.play(); }
+        });
+        controller.addListener("playback_update", onPlayback);
       });
     });
+  }
+
+  function stopSong() {
+    wantPlay = false;
+    if (ctl && ctl.pause) ctl.pause();
+    vinyl.classList.remove("is-spinning");
   }
 
   function fill(i) {
@@ -285,7 +469,8 @@
     $("#listenArtist").textContent = c.artist;
     $("#listenStudent").textContent = c.student;
     $("#listenNow").textContent = `${pad(i + 1)} · ${c.song}`;
-    ytLink.href = `https://www.youtube.com/watch?v=${c.yt}`;
+    spLink.href = spUrl(c);
+    ytLink.href = ytUrl(c);
     listen.style.setProperty("--tint", c.tint || "#006767");
     $("#listenGlow").style.setProperty("--tint", c.tint || "#006767");
     setListenTimeline(i);
@@ -305,29 +490,8 @@
       setTimeout(() => vinyl.classList.add("is-out"), reduceMotion ? 0 : 450);
     });
     $("#listenClose").focus({ preventScroll: true });
-    if (autoplay) playVideo(COVERS[current].yt);
-    else { pendingId = COVERS[current].yt; ytLink.href = `https://www.youtube.com/watch?v=${pendingId}`; playVideoIdle(pendingId); }
-  }
-
-  // Deep link: show the player cued (browsers block autoplay without a click)
-  function playVideoIdle(id) {
-    loadYT().then((YT) => {
-      if (player) return;
-      player = new YT.Player("ytPlayer", {
-        host: "https://www.youtube-nocookie.com",
-        videoId: id,
-        playerVars: { rel: 0, playsinline: 1, modestbranding: 1 },
-        events: {
-          onReady: () => { playerReady = true; pendingId = null; },
-          onStateChange: (e) => {
-            const S = window.YT.PlayerState;
-            vinyl.classList.toggle("is-spinning", e.data === S.PLAYING);
-            if (e.data === S.ENDED && !listen.hidden) go(current + 1, true);
-          },
-          onError: () => { fallback.hidden = false; }
-        }
-      });
-    });
+    // Deep links load the song without playing (browsers block sound before a click)
+    loadSong(current, autoplay);
   }
 
   let swapTimer = 0;
@@ -343,13 +507,13 @@
       listen.classList.remove("is-swapping");
       setTimeout(() => vinyl.classList.add("is-out"), reduceMotion ? 0 : 250);
     }, reduceMotion ? 0 : 320);
-    if (autoplay) playVideo(COVERS[current].yt);
+    loadSong(current, autoplay);
   }
 
   function close() {
     if (listen.hidden) return;
-    if (player && playerReady && player.stopVideo) player.stopVideo();
-    vinyl.classList.remove("is-out", "is-spinning");
+    stopSong();
+    vinyl.classList.remove("is-out");
     listen.classList.remove("is-open");
     cards.forEach((card) => card.classList.remove("is-current"));
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* noop */ }
