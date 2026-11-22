@@ -152,10 +152,10 @@
       const bed = ctx.createGain();
       const t = now();
       bed.gain.setValueAtTime(0, t);
-      bed.gain.linearRampToValueAtTime(0.1, t + 3);        // about 3 seconds to full level
+      bed.gain.linearRampToValueAtTime(0.08, t + 3);       // about 3 seconds to full level
       bed.connect(master);
       bedOscs = BED.map((m, k) => {
-        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 110 * m;
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 220 * m;
         const g = ctx.createGain(); g.gain.value = BED_MIX[k];
         o.connect(g); g.connect(bed); o.start();
         loops.push({ s: o, g });
@@ -191,7 +191,7 @@
     function cover(i) {
       if (!ready()) return;
       const r = SCALE[i % SCALE.length];
-      bedTo(r / 2);                         // the background chord moves to this song's note
+      bedTo(r);                             // the background chord moves to this song's note
       const kind = (COVERS[i] && COVERS[i].wave) || "calm";
       const P = {
         calm:    () => { tone(r, { attack: 0.25, dur: 1.4, vol: 0.1 }); tone(r * 1.5, { attack: 0.3, dur: 1.4, vol: 0.06 }); },
@@ -209,21 +209,19 @@
       (P[kind] || P.calm)();
     }
 
-    // the record slows down: the classic turntable "power-off" pitch drop
+    // the record slows down: the background chord sinks a little and fades (no falling 'bwoop' tone)
     function spinDown() {
       if (!ready()) return;
-      tone(220, { attack: 0.03, dur: 1.4, vol: 0.12, glideTo: 40 });
-      tone(330, { type: "triangle", attack: 0.03, dur: 1.4, vol: 0.06, glideTo: 60 });
-      bedOscs.forEach((o) => o.frequency.setTargetAtTime(o.frequency.value * 0.4, now(), 0.5)); // the chord sinks with it
+      bedOscs.forEach((o) => o.frequency.setTargetAtTime(o.frequency.value * 0.75, now(), 0.6)); // the chord sinks with it
       stop(1.6);
     }
     // as it lands in the teal dot: a soft low thump (a record settling on a felt mat),
     // then a warm, low closing chord — no bright "ding"
     function land() {
       if (!ready()) return;
-      tone(120, { glideTo: 80, dur: 0.3, vol: 0.3, filter: 400 });
-      [110, 164.81, 220, 261.63].forEach((f, k) =>
-        tone(f, { type: k === 0 ? "sine" : "triangle", at: 0.08, attack: 0.25, dur: 1.8, vol: [0.1, 0.05, 0.04, 0.03][k], filter: 1200 }));
+      tone(196, { glideTo: 147, dur: 0.22, vol: 0.28, filter: 900 });
+      [220, 261.63, 329.63, 440].forEach((f, k) =>
+        tone(f, { type: "triangle", at: 0.1, attack: 0.3, dur: 2, vol: [0.09, 0.06, 0.06, 0.035][k], filter: 1800 }));
     }
 
     return { unlock, start, speed, stop, hop, cover, spinDown, land, setOn, isOn: () => on };
