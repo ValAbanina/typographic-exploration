@@ -225,7 +225,14 @@
         tone(f, { type: "triangle", at: 0.1, attack: 0.3, dur: 2, vol: [0.09, 0.06, 0.06, 0.035][k], filter: 1800 }));
     }
 
-    return { unlock, start, speed, stop, hop, cover, spinDown, land, setOn, isOn: () => on };
+    // the grille breathing: a very soft swell, only possible once sound is allowed (e.g. after Replay)
+    function breath() {
+      if (!ready() || ctx.state !== "running") return;
+      tone(196, { attack: 0.7, dur: 2.2, vol: 0.03, filter: 800 });
+      tone(293.66, { attack: 0.8, dur: 2.2, vol: 0.018, filter: 800 });
+    }
+
+    return { unlock, start, speed, stop, hop, cover, spinDown, land, breath, setOn, isOn: () => on };
   })();
 
   /* ---------------------------------------------------------
@@ -466,11 +473,23 @@
     at(150, () => intro.classList.add("t1"));
     at(1100, () => intro.classList.add("t2"));
     if (clicked) at(3500, startWall);
-    else at(2300, () => intro.classList.add("t-gate"));   // Enter or Space on the keyboard also starts it
+    else at(2300, () => { intro.classList.add("t-gate"); startBreathing(); });   // Enter or Space on the keyboard also starts it
   }
+
+  // a soft breath in time with each ring of light in the grille (CSS: 0.8 s delay, every 3.6 s)
+  let breathTimers = [];
+  function startBreathing() {
+    stopBreathing();
+    breathTimers.push(setTimeout(function beat() {
+      Sound.breath();
+      breathTimers.push(setTimeout(beat, 3600));
+    }, 800));
+  }
+  function stopBreathing() { breathTimers.forEach(clearTimeout); breathTimers = []; }
 
   function startWall() {
     if (!introRunning || wallStarted) return;
+    stopBreathing();
     intro.classList.add("t3");          // the title (with Enter and the pile) fades out on its own
     runWall();
   }
@@ -502,6 +521,7 @@
     if (!introRunning) return;
     introRunning = false;
     clearIntroTimers();
+    stopBreathing();
     store.set("introSeen", "1");
     window.scrollTo(0, 0);
 
