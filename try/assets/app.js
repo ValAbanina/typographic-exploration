@@ -457,6 +457,7 @@
     window.scrollTo(0, 0);
     document.body.classList.add("intro-on", "no-scroll");
     intro.classList.remove("t1", "t2", "t3", "t-gate", "is-leaving");
+    const pile = $("#stack"); if (pile) pile.classList.remove("is-leaving");
     wall.style.visibility = "";
     resetRoller();
     wallItems.forEach((it) => { it.style.visibility = "hidden"; });
@@ -470,8 +471,7 @@
 
   function startWall() {
     if (!introRunning || wallStarted) return;
-    intro.classList.remove("t-gate");
-    intro.classList.add("t3");
+    intro.classList.add("t3");          // the title (with Enter and the pile) fades out on its own
     runWall();
   }
 
@@ -551,7 +551,24 @@
     setTimeout(() => grid.classList.remove("is-settling"), canFly ? 900 : 300);
   }
 
-  $("#enterIntro").addEventListener("click", () => { Sound.unlock(); startWall(); });
+  // the pile of record edges under Enter (first cover on top), slightly uneven like a real pile
+  const stack = $("#stack");
+  if (stack) {
+    stack.innerHTML = COVERS.map((c, i) => {
+      const h = (k) => { const v = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+      const w = 84 + h(1) * 16;                         // 84–100% wide
+      const x = (h(2) - 0.5) * 14;                      // a few px left or right
+      const r = (h(3) - 0.5) * 1.4;                     // a hair of tilt
+      const side = i % 2 ? 1 : -1;
+      return `<span class="stack__edge" style="--c:${c.tint || "#006767"};--w:${w.toFixed(1)}%;--x:${x.toFixed(1)}px;--r:${r.toFixed(2)}deg;` +
+        `--d:${(0.05 * (N - 1 - i)).toFixed(2)}s;--ld:${(0.03 * i).toFixed(2)}s;--fx:${(side * (40 + h(4) * 60)).toFixed(0)}px;--fr:${(side * (4 + h(5) * 6)).toFixed(1)}deg"></span>`;
+    }).join("");
+  }
+  $("#enterIntro").addEventListener("click", () => {
+    Sound.unlock();
+    if (stack) stack.classList.add("is-leaving");
+    startWall();
+  });
   const soundBtn = $("#soundToggle");
   const syncSoundBtn = () => {
     soundBtn.setAttribute("aria-label", Sound.isOn() ? "Sound on" : "Sound off");
@@ -562,7 +579,7 @@
   document.addEventListener("keydown", (e) => {
     if (!introRunning) return;
     if (e.target && e.target.closest && e.target.closest("button")) return; // let buttons handle their own keys
-    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); startWall(); }
+    if (!wallStarted && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); Sound.unlock(); const pile = $("#stack"); if (pile) pile.classList.add("is-leaving"); startWall(); }
     else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") { e.preventDefault(); settle(); }
   });
   $("#replayIntro").addEventListener("click", () => { if (!introRunning) { Sound.unlock(); playIntro(true); } });
