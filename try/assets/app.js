@@ -824,7 +824,15 @@
   function fitTitle() {
     const lines = [...document.querySelectorAll(".hero__line")];
     if (lines.length < 2) return;
+    const h1 = lines[0].parentElement;
+    h1.style.fontSize = "";
     lines.forEach((l) => { l.style.letterSpacing = ""; l.style.marginRight = ""; });
+    // never wider than the space it has (narrow phones, or a wider fallback font)
+    const room = h1.parentElement.clientWidth || h1.clientWidth;
+    const natural = Math.max(...lines.map((l) => l.getBoundingClientRect().width));
+    if (room && natural > room) {
+      h1.style.fontSize = `${parseFloat(getComputedStyle(h1).fontSize) * (room / natural) * 0.98}px`;
+    }
     const w = lines.map((l) => l.getBoundingClientRect().width);
     const widest = Math.max(...w);
     lines.forEach((l, i) => {
