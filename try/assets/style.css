@@ -116,6 +116,7 @@ body.no-scroll { overflow: hidden; }
 .w-rhythm { letter-spacing: .34em; margin-right: -.2em; }
 .w-volume { font-family: var(--font-head); font-weight: 800; font-size: 1.3em; line-height: 0; text-transform: uppercase; letter-spacing: .02em; }
 .w-emotion { font-style: italic; color: var(--teal); }
+.w-amp { color: var(--teal); font-weight: 600; }  /* echoes the teal & in the DGMD wordmark */
 .eyebrow { color: var(--teal); margin-bottom: 14px; }
 .hero__title {
   font-family: var(--font-head);
