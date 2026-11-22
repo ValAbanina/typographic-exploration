@@ -612,6 +612,7 @@
   function onPlayback(e) {
     const d = (e && e.data) || {};
     const playing = !d.isPaused && !d.isBuffering;
+    if (playing) hideTap();
     vinyl.classList.toggle("is-spinning", playing);
     if (playing) fallback.hidden = true;
     if (performance.now() < pb.ignoreUntil) { pb.pos = d.position || 0; return; }
@@ -678,6 +679,31 @@
     try { history.replaceState(null, "", `${PAGE}#${c.slug}`); } catch (e) { /* file:// etc. */ }
   }
 
+  /* Opening a song's own link (…#espresso): try to play straight away. Browsers often block
+     sound before the visitor has clicked anything; then the first click anywhere starts it. */
+  const tapHint = $("#tapToPlay");
+  let tapArmed = false;
+  function hideTap() {
+    tapHint.hidden = true;
+    if (tapArmed) { tapArmed = false; document.removeEventListener("pointerdown", onFirstTap, true); document.removeEventListener("keydown", onFirstTap, true); }
+  }
+  function onFirstTap(e) {
+    if (e.target && e.target.closest && e.target.closest("#listenClose")) { hideTap(); return; } // closing: don't start music
+    hideTap();
+    if (ctl && !listen.hidden) ctl.play(); else wantPlay = true;
+  }
+  function armTapToPlay() {
+    setTimeout(() => {
+      if (listen.hidden || pb.playing) return;          // it's already playing (or closed): nothing to do
+      tapHint.hidden = false;
+      if (!tapArmed) {
+        tapArmed = true;
+        document.addEventListener("pointerdown", onFirstTap, true);
+        document.addEventListener("keydown", onFirstTap, true);
+      }
+    }, 2500);
+  }
+
   function open(i, autoplay = true) {
     current = (i + N) % N;
     lastFocus = document.activeElement;
@@ -722,6 +748,7 @@
 
   function close() {
     if (listen.hidden) return;
+    hideTap();
     stopSong();
     vinyl.classList.remove("is-out");
     listen.classList.remove("is-open");
@@ -791,7 +818,8 @@
   document.body.classList.remove("is-loading");
   const deep = COVERS.findIndex((c) => `#${c.slug}` === location.hash);
   if (deep >= 0) {
-    open(deep, false);
+    open(deep, true);        // try to play right away
+    armTapToPlay();          // if the browser blocked it, the first click anywhere plays
   } else if (!reduceMotion && store.get("introSeen") !== "1") {
     playIntro();
   }

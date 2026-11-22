@@ -237,7 +237,7 @@ body.no-scroll { overflow: hidden; }
   border-top: 1px solid var(--line);
   color: var(--grey); font-size: 14px; line-height: 22px;
 }
-.site-footer__mark { height: 28px; width: auto; margin-bottom: 20px; opacity: .9; }
+.site-footer__mark { height: 28px; width: auto; margin-bottom: 20px; opacity: .55; }  /* one-colour logo, quieter than the header one */
 .site-footer__fine { margin-top: 6px; font-size: 12px; line-height: 18px; color: #7d7f82; max-width: 46em; }
 
 /* =========================================================
@@ -568,6 +568,11 @@ body.intro-on .intro { display: block; }
 .player__fallback { margin-top: 12px; font-size: 14px; color: var(--grey); }
 .player__fallback a, .player__more a { color: var(--teal); text-decoration: none; }
 .player__fallback a:hover, .player__more a:hover { text-decoration: underline; }
+.player__tap {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 14px;
+  font-family: var(--font-head); font-weight: 600; font-size: 16px; line-height: 22px; color: var(--white);
+}
+.player__tap[hidden] { display: none; }
 .player__more {
   margin-top: 12px;
   font-family: var(--font-body); font-weight: 600; font-size: 12px; line-height: 18px;
