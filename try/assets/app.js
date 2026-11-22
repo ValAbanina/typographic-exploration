@@ -699,12 +699,22 @@
     current = next;
     clearTimeout(swapTimer);
     listen.classList.add("is-swapping");
-    vinyl.classList.remove("is-out", "is-spinning");
+    vinyl.classList.remove("is-out", "is-spinning");    // the record slides back into its sleeve
+    // get the next cover ready while that happens, then swap it in behind the closed sleeve
+    const pre = new Image(); pre.src = img(COVERS[current], 1600);
+    const target = current;
     swapTimer = setTimeout(() => {
-      fill(current);
-      listen.classList.remove("is-swapping");
-      setTimeout(() => vinyl.classList.add("is-out"), reduceMotion ? 0 : 250);
-    }, reduceMotion ? 0 : 320);
+      let swapped = false;
+      const swap = () => {
+        if (swapped || target !== current) return;
+        swapped = true;
+        fill(current);
+        listen.classList.remove("is-swapping");
+        setTimeout(() => vinyl.classList.add("is-out"), reduceMotion ? 0 : 200); // the new record slides out
+      };
+      if (pre.complete || reduceMotion) swap();
+      else { pre.onload = pre.onerror = swap; setTimeout(swap, 600); }
+    }, reduceMotion ? 0 : 560);
     loadSong(current, autoplay);
   }
 
