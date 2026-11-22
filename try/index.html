@@ -5,6 +5,9 @@
   <base href="../">
   <meta name="robots" content="noindex">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- security: only this site's own code and Spotify's player may run; nothing else can be injected -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://open.spotify.com https://embed-cdn.spotifycdn.com; frame-src https://open.spotify.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.spotify.com https://*.spotifycdn.com; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>PREVIEW · Typographic Exploration — Album Covers · Digital Media &amp; Design, Langara</title>
   <meta name="description" content="Fourteen album covers by Langara Digital Media &amp; Design students, using typography as the only image. Click a cover to hear the song.">
   <meta name="theme-color" content="#111212">
@@ -15,14 +18,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700;800&family=Roboto:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="try/assets/style.css?v=202611212211">
+  <link rel="stylesheet" href="try/assets/style.css?v=202611212217">
 </head>
 <body class="is-loading">
 
   <!-- ============ INTRO ============ -->
   <div class="intro" id="intro" aria-hidden="true">
     <div class="intro__title" id="introTitle">
-      <img class="intro__mark" src="assets/dgmd-on-dark.svg" alt="">
+      <img class="intro__mark" src="assets/dgmd-on-dark.svg" alt="" width="480" height="99">
       <p class="intro__eyebrow">Project 01</p>
       <p class="intro__headline">Typographic Exploration</p>
       <div class="intro__gate">
@@ -67,7 +70,7 @@
   <!-- ============ PAGE ============ -->
   <header class="site-header">
     <a class="site-header__mark" href="#top" aria-label="Digital Media &amp; Design, Langara College">
-      <img src="assets/dgmd-on-dark.svg" alt="Digital Media &amp; Design">
+      <img src="assets/dgmd-on-dark.svg" alt="Digital Media &amp; Design" width="165" height="34">
     </a>
     <button class="text-btn" id="replayIntro" type="button">Replay intro</button>
   </header>
@@ -89,7 +92,7 @@
   </main>
 
   <footer class="site-footer">
-    <img src="try/assets/dgmd-vertical-grey.svg" alt="Digital Media &amp; Design" class="site-footer__mark">
+    <img src="try/assets/dgmd-vertical-grey.svg" alt="Digital Media &amp; Design" class="site-footer__mark" width="110" height="72">
     <div class="site-footer__text">
       <p>Visual Storytelling I · Digital Media &amp; Design · Langara&nbsp;College · Fall&nbsp;2026</p>
       <p class="site-footer__fine">Album covers © the student designers. Songs play from Spotify, with full songs linked on YouTube. All music rights belong to the artists and their&nbsp;labels.</p>
@@ -117,9 +120,9 @@
 
         <div class="player">
           <div class="player__frame"><div id="spPlayer"></div></div>
-          <p class="player__fallback" id="spFallback" hidden>The player can’t load here. <a id="spLink" href="#" target="_blank" rel="noopener">Open in Spotify&nbsp;↗</a></p>
+          <p class="player__fallback" id="spFallback" hidden>The player can’t load here. <a id="spLink" href="#" target="_blank" rel="noopener noreferrer">Open in Spotify&nbsp;↗</a></p>
           <p class="player__tap" id="tapToPlay" hidden><span class="hint-dot" aria-hidden="true"></span>Click anywhere to&nbsp;play</p>
-          <p class="player__more"><a id="ytLink" href="#" target="_blank" rel="noopener">Full song on YouTube&nbsp;↗</a></p>
+          <p class="player__more"><a id="ytLink" href="#" target="_blank" rel="noopener noreferrer">Full song on YouTube&nbsp;↗</a></p>
         </div>
 
         <div class="listen__nav">
@@ -139,7 +142,7 @@
     </div>
   </div>
 
-  <script src="assets/data.js?v=202611212211"></script>
-  <script src="try/assets/app.js?v=202611212211"></script>
+  <script src="assets/data.js?v=202611212217"></script>
+  <script src="try/assets/app.js?v=202611212217"></script>
 </body>
 </html>
