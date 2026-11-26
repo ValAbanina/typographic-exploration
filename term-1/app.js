@@ -342,7 +342,7 @@
     const lastFast = WALL.length - 1 - [...WALL].reverse().findIndex((gi) => COVERS[gi].fast);
     const kFrom = -1.2, kTo = N - 1;
     const uOf = (k) => clamp((k - kFrom) / (kTo - kFrom), 0, 1);
-    const R0 = uOf(firstFast - 8), UP = uOf((firstFast + lastFast) / 2 + 0.5);   // starts rising / fastest
+    const R0 = uOf(3), UP = uOf((firstFast + lastFast) / 2 + 0.5);   // starts rising / fastest
     const speedAt = (kc) => {                              // covers per second
       if (firstFast < 0) return 1;
       const u = uOf(kc);
@@ -608,8 +608,15 @@
     if (canFly) {
       grid.classList.add("is-flying");
       const from = wallArts.map((a) => a.getBoundingClientRect());
+      // CLASS: only covers whose place in the grid is on screen fly home (with short delays);
+      // the wall copies of the others fade out where they are, instead of hanging around
+      // and then sliding away below the screen.
+      const vh = window.innerHeight;
+      const flyers = [];
       cardArts.forEach((art, i) => {
         const to = art.getBoundingClientRect();
+        const wi = wallItems[POS[i]];
+        if (to.top >= vh || to.bottom <= 0) return;         // its place is off screen: no flight
         const f = from[POS[i]];           // CLASS: the wall runs in its own order
         const s = f.width / to.width;
         art.style.transition = "none";
@@ -617,13 +624,16 @@
         art.style.transform = `translate(${f.left - to.left}px, ${f.top - to.top}px) scale(${s})`;
         art.style.zIndex = "101";
         art.style.position = "relative";
+        wi.style.visibility = "hidden";                       // the card itself takes over from its wall copy
+        flyers.push(art);
       });
-      track.style.visibility = "hidden";
+      track.style.transition = "opacity .35s ease";            // the covers that don't fly fade out
+      track.style.opacity = "0";
       trail.style.opacity = "0";
       void grid.offsetWidth; // commit start positions
       requestAnimationFrame(() => {
-        cardArts.forEach((art, i) => {
-          art.style.transition = `transform 1.25s cubic-bezier(.16,1,.3,1) ${i * 30}ms`;
+        flyers.forEach((art, n) => {
+          art.style.transition = `transform 1.25s cubic-bezier(.16,1,.3,1) ${n * 45}ms`;
           art.style.transform = "";
         });
         landRecord();
@@ -635,12 +645,12 @@
     Sound.stop(0.5);
 
     intro.classList.add("is-leaving");
-    const total = canFly ? 1250 + N * 30 : 900;
+    const total = canFly ? 1250 + 12 * 45 : 900;
     setTimeout(() => {
       document.body.classList.remove("intro-on", "no-scroll");
       intro.classList.remove("is-leaving");
       grid.classList.remove("is-flying", "is-settling");
-      track.style.visibility = "";
+      track.style.visibility = ""; track.style.opacity = ""; track.style.transition = "";
       trail.style.opacity = "";
       cardArts.forEach((art) => {
         art.style.transition = art.style.transformOrigin = art.style.zIndex = art.style.position = "";
