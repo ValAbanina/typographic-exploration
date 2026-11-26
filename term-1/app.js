@@ -342,11 +342,11 @@
     const lastFast = WALL.length - 1 - [...WALL].reverse().findIndex((gi) => COVERS[gi].fast);
     const kFrom = -1.2, kTo = N - 1;
     const uOf = (k) => clamp((k - kFrom) / (kTo - kFrom), 0, 1);
-    const R0 = uOf(3), UP = uOf((firstFast + lastFast) / 2 + 0.5);   // starts rising / fastest
+    const R0 = uOf(3.5), UP = uOf((firstFast + lastFast) / 2 + 0.5);   // starts rising / fastest
     const speedAt = (kc) => {                              // covers per second
       if (firstFast < 0) return 1;
       const u = uOf(kc);
-      if (u < UP) return V_START + (V_PEAK - V_START) * Math.pow(Math.sin((Math.PI / 2) * clamp((u - R0) / (UP - R0), 0, 1)), 2);
+      if (u < UP) return V_START + (V_PEAK - V_START) * Math.sin((Math.PI / 2) * clamp((u - R0) / (UP - R0), 0, 1));   // felt right away from cover 5
       return V_END + (V_PEAK - V_END) * Math.pow(Math.sin((Math.PI / 2) * (1 - u) / (1 - UP)), 2);
     };
     const c0 = vw / 2 - W.start, c1 = vw / 2 - W.end, dc = step / 40;
