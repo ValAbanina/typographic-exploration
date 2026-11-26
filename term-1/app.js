@@ -335,19 +335,17 @@
       rollIn: 1600,
       exitTo: Math.min(vw / 2 + size / 2 + gap + r, vw - r - 12),
     };
-    // CLASS: one continuous swell of speed, like a car pulling away and pulling in again:
-    // the first showcase covers at the usual pace, then it gathers speed little by little,
-    // is quickest among the extra covers, and eases down over the last few onto the final cover.
+    // CLASS: one continuous swell of speed, like a car pulling away and then coasting in:
+    // it starts gathering speed from the first cover, is at full speed a third of the way along,
+    // then slows little by little all the way to the final cover (no flat stretches, no sudden braking).
     const firstFast = WALL.findIndex((gi) => COVERS[gi].fast);
-    const lastFast = WALL.length - 1 - [...WALL].reverse().findIndex((gi) => COVERS[gi].fast);
-    const kFrom = -1.2, kTo = N - 1;
-    const uOf = (k) => clamp((k - kFrom) / (kTo - kFrom), 0, 1);
-    const R0 = uOf(3.5), UP = uOf((firstFast + lastFast) / 2 + 0.5);   // starts rising / fastest
+    const kTo = N - 1, K1 = N / 3;                         // K1: full speed reached here
+    const ss = (t) => t * t * (3 - 2 * t);                 // smooth in and out
     const speedAt = (kc) => {                              // covers per second
       if (firstFast < 0) return 1;
-      const u = uOf(kc);
-      if (u < UP) return V_START + (V_PEAK - V_START) * Math.sin((Math.PI / 2) * clamp((u - R0) / (UP - R0), 0, 1));   // felt right away from cover 5
-      return V_END + (V_PEAK - V_END) * Math.pow(Math.sin((Math.PI / 2) * (1 - u) / (1 - UP)), 2);
+      if (kc < K1) return V_START + (V_PEAK - V_START) * ss(clamp((kc + 0.5) / (K1 + 0.5), 0, 1));
+      const t = clamp((kc - K1) / (kTo - K1), 0, 1);
+      return V_END + (V_PEAK - V_END) * (1 - ss(Math.pow(t, V_GLIDE)));
     };
     const c0 = vw / 2 - W.start, c1 = vw / 2 - W.end, dc = step / 40;
     const cs = [c0], ts = [0];
@@ -402,8 +400,9 @@
 
   // CLASS: speed of the intro, in covers per second
   const V_START = 1.0;        // the first covers (a touch quicker than the showcase's 0.9)
-  const V_PEAK = 2.8;         // fastest, in the middle of the extra covers
+  const V_PEAK = 2.8;         // fastest, a third of the way along
   const V_END = 0.6;          // arriving at the last cover
+  const V_GLIDE = 1.6;        // how long it stays quick before slowing (higher = slows later)
   // CLASS: gallery offset x at a given time (s) on the paced timeline
   function xAtTime(sec) {
     const { cs, ts } = W;
