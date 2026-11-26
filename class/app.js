@@ -335,19 +335,39 @@
       rollIn: 1600,
       exitTo: Math.min(vw / 2 + size / 2 + gap + r, vw - r - 12),
     };
-    // CLASS: variable pace. Showcase covers ~1 s each, the others FAST_PACE s each,
-    // blending smoothly from one to the next. Table of (centre position → time) to look up.
-    const pace = (j) => (COVERS[WALL[clamp(j, 0, N - 1)]].fast ? FAST_PACE : 1);
+    // CLASS: variable pace. Each cover has a target speed (showcase 1 cover/s, the others faster).
+    // The speed is eased between them over a few covers (a soft bell-shaped average), so the record
+    // gathers speed gradually and slows down gradually instead of switching gears.
+    const vOf = (j) => (COVERS[WALL[clamp(j, 0, N - 1)]].fast ? 1 / FAST_PACE : 1);
+    const speedAt = (kc) => {
+      let sum = 0, wsum = 0;
+      for (let j = Math.floor(kc) - 5; j <= Math.ceil(kc) + 5; j++) {
+        const w = Math.exp(-Math.pow((j - kc) / RAMP, 2) / 2);
+        sum += w * vOf(j); wsum += w;
+      }
+      return sum / wsum;
+    };
     const c0 = vw / 2 - W.start, c1 = vw / 2 - W.end, dc = step / 40;
     const cs = [c0], ts = [0];
     for (let c = c0; c < c1; c += dc) {
-      const kc = (c + dc / 2 - size / 2) / step;          // continuous wall position (cover k centred at k)
-      const j = Math.floor(kc), u = smooth(clamp(kc - j, 0, 1));
-      const sec = pace(j) + (pace(j + 1) - pace(j)) * u;  // seconds per cover here
-      cs.push(Math.min(c + dc, c1)); ts.push(ts[ts.length - 1] + sec * (Math.min(c + dc, c1) - c) / step);
+      const c2 = Math.min(c + dc, c1);
+      const kc = ((c + c2) / 2 - size / 2) / step;        // continuous wall position (cover k centred at k)
+      cs.push(c2); ts.push(ts[ts.length - 1] + (c2 - c) / step / speedAt(kc));
     }
     W.cs = cs; W.ts = ts; W.c0 = c0; W.c1 = c1;
-    W.dur = ts[ts.length - 1] * 1000;
+    // CLASS: real clock → paced time. A gentle start (as the record rolls in) and a long, soft
+    // slow-down onto the last cover; in between, the pace above is played as it is.
+    const T = ts[ts.length - 1], EIN = 1.6, EOUT = 1.8, dt = 1 / 120;
+    const W_t = [0], W_tau = [0];
+    let tau = 0, tr = 0;
+    while (tau < T && tr < 120) {
+      const a = 0.45 + 0.55 * smooth(clamp(tau / EIN, 0, 1));
+      const b = 0.3 + 0.7 * smooth(clamp((T - tau) / EOUT, 0, 1));
+      tau = Math.min(T, tau + dt * a * b); tr += dt;
+      W_t.push(tr); W_tau.push(tau);
+    }
+    W.clockT = W_t; W.clockTau = W_tau;
+    W.dur = tr * 1000;
     W.xr0 = -D - W.start;                               // record start, in wall coordinates
     buildTrail();
   }
@@ -380,10 +400,12 @@
     trailGlow.setAttribute("d", d);
   }
 
-  const FAST_PACE = 0.3;      // CLASS: seconds per cover while racing past
+  const FAST_PACE = 0.38;     // CLASS: seconds per cover at full speed, racing past
+  const RAMP = 1.4;           // CLASS: how many covers the speeding up / slowing down is spread over (softness)
   // CLASS: gallery offset x at a given time (s) on the paced timeline
   function xAtTime(sec) {
     const { cs, ts } = W;
+    if (!(sec > 0)) sec = 0;                         // also catches NaN
     let lo = 0, hi = ts.length - 1;
     if (sec <= 0) return W.vw / 2 - cs[0];
     if (sec >= ts[hi]) return W.vw / 2 - cs[hi];
@@ -480,7 +502,8 @@
     const frame = (now) => {
       const t = now - t0;
       const p = Math.min(1, t / W.dur);
-      const x = xAtTime((W.dur / 1000) * glide(p));
+      const k = clamp(Math.round((t / 1000) * 120), 0, W.clockT.length - 1);   // 120 steps per second (t can be a hair below 0 on the first frame)
+      const x = xAtTime(W.clockTau[k]);
       if (p < 1) {
         const sx = -W.D + (W.vw / 2 + W.D) * easeOut(t / W.rollIn);
         const cur = drawFrame(x, sx);
