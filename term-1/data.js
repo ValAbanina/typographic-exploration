@@ -9,7 +9,8 @@
   The covers below are added after them.
 
   fast: true = the record moves quickly past this cover in the intro.
-  Same fields as the showcase otherwise (see assets/data.js).
+  Same fields as the showcase otherwise (see assets/data.js)
+  Address: /term-1/.
 */
 window.COVERS = (window.COVERS || []).concat([
   { slug: "gods-plan",         song: "God's Plan",        artist: "Drake",                student: "Rihan Chawla",   sp: "6DCZcSspjsKoFjzjrWoCdn", yt: "xpVfcZ0ZcFM", tint: "#1a1c1d", wave: "groove",  fast: true },
