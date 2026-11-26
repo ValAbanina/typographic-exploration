@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- CLASS GALLERY: unlisted. Not linked from the showcase; search engines are asked not to list it. -->
+  <meta name="robots" content="noindex, nofollow">
+  <!-- files are shared with the showcase one folder up (covers, styles, logos) -->
+  <base href="../">
+  <!-- security: only this site's own code and Spotify's player may run; nothing else can be injected -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://open.spotify.com https://embed-cdn.spotifycdn.com; frame-src https://open.spotify.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.spotify.com https://*.spotifycdn.com; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Typographic Exploration — Class Gallery · Digital Media &amp; Design, Langara</title>
+  <meta name="description" content="Every album cover from the class: Langara Digital Media &amp; Design students using typography as the only image. Click a cover to hear the song.">
+  <meta name="theme-color" content="#111212">
+  <meta property="og:title" content="Typographic Exploration — Class Gallery">
+  <meta property="og:description" content="Every album cover from the class, where type is the only image. Click a cover to hear the song.">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Digital Media &amp; Design · Langara College">
+  <meta property="og:url" content="https://valabanina.github.io/typographic-exploration/class/">
+  <!-- wide image first (Facebook, LinkedIn, X, Slack, Discord…), square second (apps that show square thumbnails) -->
+  <meta property="og:image" content="https://valabanina.github.io/typographic-exploration/assets/social/og-1200x630.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Typographic Exploration: student album covers on a curved gallery wall, with a teal record and sound line. Digital Media &amp; Design, Langara College.">
+  <meta property="og:image" content="https://valabanina.github.io/typographic-exploration/assets/social/og-1200x1200.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="Typographic Exploration: student album covers on a curved gallery wall, with a teal record and sound line. Digital Media &amp; Design, Langara College.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Typographic Exploration — Class Gallery">
+  <meta name="twitter:description" content="Every album cover from the class, where type is the only image. Click a cover to hear the song.">
+  <meta name="twitter:image" content="https://valabanina.github.io/typographic-exploration/assets/social/og-1200x630.jpg">
+  <meta name="twitter:image:alt" content="Typographic Exploration: student album covers on a curved gallery wall, with a teal record and sound line. Digital Media &amp; Design, Langara College.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700;800&family=Roboto:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?v=202611260219">
+</head>
+<body class="is-loading">
+
+  <!-- ============ INTRO ============ -->
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro__title" id="introTitle">
+      <img class="intro__mark" src="assets/dgmd-on-dark.svg" alt="" width="480" height="99">
+      <p class="intro__eyebrow">Project 01</p>
+      <p class="intro__headline">Typographic Exploration</p>
+      <div class="intro__gate">
+        <button class="intro__enter" id="enterIntro" type="button">Enter</button>
+      </div>
+    </div>
+
+    <!-- a speaker grille across the bottom of the title screen; it "breathes" while waiting for Enter -->
+    <div class="grille" id="grille" aria-hidden="true"><div class="grille__pulse"></div></div>
+
+    <div class="spotlight" id="spotlight"></div>
+
+    <div class="wall" id="wall">
+      <!-- the sound line the record draws as it rolls -->
+      <svg class="trail" id="trail" aria-hidden="true">
+        <defs><clipPath id="trailClip"><rect id="trailReveal" x="-99999" y="-2000" width="0" height="4000"/></clipPath></defs>
+        <path class="trail__glow" id="trailGlow" clip-path="url(#trailClip)"/>
+        <path class="trail__line" id="trailLine" clip-path="url(#trailClip)"/>
+      </svg>
+      <!-- the hero: a record that rolls behind the covers and plays each one -->
+      <div class="roller" id="roller"><div class="roller__disc" id="rollerDisc"><div class="roller__label" id="rollerLabel"></div></div></div>
+      <div class="wall__track" id="wallTrack"></div>
+    </div>
+
+    <div class="intro__bar" id="introBar">
+      <div class="timeline" id="introTimeline"></div>
+      <span class="intro__count" id="introCount">01 / 25</span>
+    </div>
+
+    <div class="intro__controls">
+      <button class="intro__sound" id="soundToggle" type="button" aria-pressed="true" aria-label="Sound on">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path class="spk" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
+          <path class="wave1" d="M15.5 9.2a4 4 0 0 1 0 5.6"/>
+          <path class="wave2" d="M18.3 6.6a7.6 7.6 0 0 1 0 10.8"/>
+          <path class="mute" d="M16 9.5l5 5M21 9.5l-5 5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ PAGE ============ -->
+  <header class="site-header">
+    <a class="site-header__mark" href="class/#top" aria-label="Digital Media &amp; Design, Langara College">
+      <img src="assets/dgmd-on-dark.svg" alt="Digital Media &amp; Design" width="165" height="34">
+    </a>
+    <button class="text-btn" id="replayIntro" type="button">Replay intro</button>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero__head">
+        <p class="eyebrow">Project 01 · Visual Storytelling I · Class gallery</p>
+        <h1 class="hero__title"><span class="hero__line">Typographic</span> <span class="hero__line">Exploration</span></h1>
+      </div>
+      <div class="hero__side">
+        <p class="hero__lede">Each student chose a song and turned it into an album&nbsp;cover where typography is the only&nbsp;image:
+          <span class="hero__show"><span class="w-rhythm">rhythm</span>, <span class="w-volume">volume</span> <span class="w-amp" aria-label="and">&amp;</span> <span class="w-emotion">emotion</span>, made visible through&nbsp;type.</span></p>
+        <p class="hero__hint"><span class="hint-dot" aria-hidden="true"></span>Click a cover to&nbsp;listen</p>
+      </div>
+    </section>
+
+    <section class="grid" id="grid" aria-label="Album covers"></section>
+  </main>
+
+  <footer class="site-footer">
+    <img src="assets/dgmd-vertical-grey.svg" alt="Digital Media &amp; Design" class="site-footer__mark" width="110" height="72">
+    <div class="site-footer__text">
+      <p>Visual Storytelling I · Digital Media &amp; Design · Langara&nbsp;College · Fall&nbsp;2026</p>
+      <p class="site-footer__fine">Album covers © the student designers. Songs play from Spotify, with full songs linked on YouTube. All music rights belong to the artists and their&nbsp;labels.</p>
+    </div>
+  </footer>
+
+  <!-- ============ LISTENING VIEW ============ -->
+  <div class="listen" id="listen" role="dialog" aria-modal="true" aria-labelledby="listenTitle" hidden>
+    <div class="listen__glow" id="listenGlow" aria-hidden="true"></div>
+    <button class="listen__close" id="listenClose" type="button" aria-label="Close and stop the music">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+    </button>
+
+    <div class="listen__stage">
+      <div class="listen__art">
+        <div class="vinyl" id="vinyl" aria-hidden="true"><div class="vinyl__label" id="vinylLabel"></div></div>
+        <img class="listen__cover" id="listenCover" alt="">
+      </div>
+
+      <div class="listen__info">
+        <p class="listen__num" id="listenNum">01</p>
+        <h2 class="listen__title" id="listenTitle">Song</h2>
+        <p class="listen__artist" id="listenArtist">Artist</p>
+        <p class="listen__student">Cover by <span id="listenStudent">Student</span></p>
+
+        <div class="player">
+          <div class="player__frame"><div id="spPlayer"></div></div>
+          <p class="player__fallback" id="spFallback" hidden>The player can’t load here. <a id="spLink" href="#" target="_blank" rel="noopener noreferrer">Open in Spotify&nbsp;↗</a></p>
+          <p class="player__tap" id="tapToPlay" hidden><span class="hint-dot" aria-hidden="true"></span>Click anywhere to&nbsp;play</p>
+          <p class="player__more"><a id="ytLink" href="#" target="_blank" rel="noopener noreferrer">Full song on YouTube&nbsp;↗</a></p>
+        </div>
+
+        <div class="listen__nav">
+          <button class="nav-btn" id="prevBtn" type="button" aria-label="Previous cover">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <button class="nav-btn" id="nextBtn" type="button" aria-label="Next cover">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="listen__bar">
+      <div class="timeline timeline--interactive" id="listenTimeline" role="tablist" aria-label="Jump to a cover"></div>
+      <span class="listen__now" id="listenNow">01 · Same Stars</span>
+    </div>
+  </div>
+
+  <script src="assets/data.js?v=202611260219"></script>
+  <script src="class/data.js?v=202611260219"></script>
+  <script src="class/app.js?v=202611260219"></script>
+</body>
+</html>
