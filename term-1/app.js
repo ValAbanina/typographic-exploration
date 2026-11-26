@@ -358,11 +358,11 @@
     }
     W.cs = cs; W.ts = ts; W.c0 = c0; W.c1 = c1;
     // CLASS: real clock → paced time, with a gentle start as the record rolls in
-    const T = ts[ts.length - 1], EIN = 1.6, dt = 1 / 120;
+    const T = ts[ts.length - 1], EIN = 1.3, dt = 1 / 120;
     const W_t = [0], W_tau = [0];
     let tau = 0, tr = 0;
     while (tau < T && tr < 120) {
-      const a = 0.45 + 0.55 * smooth(clamp(tau / EIN, 0, 1));
+      const a = 0.55 + 0.45 * smooth(clamp(tau / EIN, 0, 1));
       tau = Math.min(T, tau + dt * a); tr += dt;
       W_t.push(tr); W_tau.push(tau);
     }
@@ -401,7 +401,7 @@
   }
 
   // CLASS: speed of the intro, in covers per second
-  const V_START = 0.9;        // the first covers (the showcase's usual pace)
+  const V_START = 1.0;        // the first covers (a touch quicker than the showcase's 0.9)
   const V_PEAK = 2.8;         // fastest, in the middle of the extra covers
   const V_END = 0.6;          // arriving at the last cover
   // CLASS: gallery offset x at a given time (s) on the paced timeline
